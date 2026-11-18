@@ -348,60 +348,113 @@ function bindDashboardEvents() {
 
     try {
       const text = await file.text();
-      let parsed = JSON.parse(text);
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (parseErr) {
+        throw new Error(`Invalid JSON syntax in file: ${parseErr.message}`);
+      }
 
       let rawList = [];
       if (Array.isArray(parsed)) {
         rawList = parsed;
       } else if (parsed && Array.isArray(parsed.questions)) {
         rawList = parsed.questions;
+      } else if (parsed && Array.isArray(parsed.items)) {
+        rawList = parsed.items;
+      } else if (parsed && Array.isArray(parsed.data)) {
+        rawList = parsed.data;
       } else if (parsed && typeof parsed === 'object') {
         const firstArrayProp = Object.values(parsed).find((val) => Array.isArray(val));
         if (firstArrayProp) rawList = firstArrayProp;
       }
 
       if (!rawList || !rawList.length) {
-        throw new Error('No question array found in JSON file. Expected format: [{ question, options, correctIndex }, ...]');
+        throw new Error('No questions found in JSON file. Expected an array of question objects or an object with a "questions" array.');
       }
 
       const normalized = rawList.map((q, idx) => {
-        const questionText = String(q.question || q.prompt || q.title || '').trim();
+        // 1. Flexible Question Text: question | text | q | title | prompt
+        const questionText = String(
+          q.question || q.text || q.q || q.title || q.prompt || ''
+        ).trim();
+
         if (!questionText) {
           throw new Error(`Question #${idx + 1} is missing a question text string.`);
         }
 
+        // 2. Flexible Options Array: options | choices | answers
+        let rawOpts = q.options || q.choices || q.answers;
         let opts = [];
-        if (Array.isArray(q.options)) {
-          opts = q.options.map((opt) => String(opt).trim());
-        } else if (q.type === 'tf') {
+
+        if (Array.isArray(rawOpts)) {
+          opts = rawOpts.map((opt) => String(opt ?? '').trim());
+        } else if (typeof rawOpts === 'object' && rawOpts !== null) {
+          // If options is an object like { A: "...", B: "..." } or { "0": "...", "1": "..." }
+          opts = Object.values(rawOpts).map((opt) => String(opt ?? '').trim());
+        } else if (q.type === 'tf' || q.type === 'true_false' || q.type === 'boolean') {
           opts = ['True', 'False'];
         }
 
         if (opts.length < 2) {
-          throw new Error(`Question #${idx + 1} ("${questionText.slice(0, 30)}...") must have at least 2 options.`);
+          throw new Error(`Question #${idx + 1} ("${questionText.slice(0, 35)}...") must have at least 2 options.`);
         }
 
+        // 3. Flexible Correct Answer Mapping:
+        // Handles: 0-based index (0-3), 1-based index (1-4), letter ("A"-"D", "a"-"d"), or exact option text
         let correctIdx = 0;
-        if (typeof q.correctIndex === 'number') {
-          correctIdx = Math.max(0, Math.min(opts.length - 1, q.correctIndex));
-        } else if (typeof q.correctOption === 'number') {
-          correctIdx = q.correctOption > 0 && q.correctOption <= opts.length ? q.correctOption - 1 : 0;
-        } else if (q.answer !== undefined) {
-          if (typeof q.answer === 'number') {
-            correctIdx = Math.max(0, Math.min(opts.length - 1, q.answer));
-          } else if (typeof q.answer === 'string') {
-            const foundIdx = opts.findIndex(
-              (o) => o.toLowerCase() === q.answer.trim().toLowerCase()
-            );
-            correctIdx = foundIdx >= 0 ? foundIdx : 0;
+        const rawAns = q.correctAnswer ?? q.correctIndex ?? q.correctOption ?? q.answer ?? q.correct;
+
+        if (typeof rawAns === 'number') {
+          if (rawAns >= 0 && rawAns < opts.length) {
+            correctIdx = rawAns;
+          } else if (rawAns >= 1 && rawAns <= opts.length) {
+            correctIdx = rawAns - 1;
+          } else {
+            correctIdx = 0;
+          }
+        } else if (typeof rawAns === 'string') {
+          const trimmedAns = rawAns.trim();
+          const upperAns = trimmedAns.toUpperCase();
+
+          // Check if it's a numeric string like "0", "1", "2"
+          const parsedNum = parseInt(trimmedAns, 10);
+          if (!isNaN(parsedNum) && String(parsedNum) === trimmedAns) {
+            if (parsedNum >= 0 && parsedNum < opts.length) {
+              correctIdx = parsedNum;
+            } else if (parsedNum >= 1 && parsedNum <= opts.length) {
+              correctIdx = parsedNum - 1;
+            }
+          } else if (['A', 'B', 'C', 'D', 'E', 'F'].includes(upperAns)) {
+            // Check letter format A-F
+            const letterIdx = upperAns.charCodeAt(0) - 65;
+            if (letterIdx >= 0 && letterIdx < opts.length) {
+              correctIdx = letterIdx;
+            }
+          } else {
+            // Check exact text match or case-insensitive match against options
+            const exactIdx = opts.findIndex((o) => o.toLowerCase() === trimmedAns.toLowerCase());
+            if (exactIdx >= 0) {
+              correctIdx = exactIdx;
+            } else {
+              correctIdx = 0;
+            }
           }
         }
 
+        // 4. Metadata: category / topic, difficulty / level, type, sequential question ID
+        const category = String(q.category || q.topic || 'General').trim();
+        const difficulty = String(q.difficulty || q.level || 'BASICS').trim().toUpperCase();
+        const qType = (q.type === 'tf' || opts.length === 2) ? 'tf' : 'mcq';
+        const qNum = `Q${idx + 1}`;
+
         return {
-          id: q.id || Date.now() + idx,
+          id: q.id || qNum || `${currentManagingSlot}_${idx + 1}`,
+          questionNumber: qNum,
           slot: currentManagingSlot,
-          category: String(q.category || q.topic || 'General').trim(),
-          type: q.type === 'tf' ? 'tf' : 'mcq',
+          category,
+          difficulty,
+          type: qType,
           question: questionText,
           options: opts,
           correctIndex: correctIdx,
@@ -409,12 +462,16 @@ function bindDashboardEvents() {
         };
       });
 
+      // Update state and write to Cloud Firestore
       questions = normalized;
       await saveQuestions(questions, currentManagingSlot);
+
+      // Immediately refresh Question Bank UI
       await refreshQuestionsSlotView();
-      showToast(`Successfully uploaded ${normalized.length} questions to Slot ${currentManagingSlot}!`);
+      showToast(`Successfully imported ${normalized.length} questions into Slot ${currentManagingSlot}!`);
     } catch (err) {
-      showToast(`Failed to parse JSON file: ${err.message}`, true);
+      console.error('Question Bank JSON Import Error:', err);
+      showToast(`Upload failed: ${err.message}`, true);
     } finally {
       jsonInput.value = '';
     }

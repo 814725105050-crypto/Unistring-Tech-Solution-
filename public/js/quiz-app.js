@@ -234,13 +234,21 @@ function bindUIEvents() {
         college: FIXED_COLLEGE
       };
 
-      document.getElementById('brief-student-name').textContent = fullName;
-      document.getElementById('brief-student-reg').textContent = registerNumber;
-      document.getElementById('brief-student-email').textContent = email;
-      document.getElementById('chk-security-consent').checked = false;
-      document.getElementById('btn-start-quiz').disabled = true;
+      const elName = document.getElementById('brief-student-name');
+      if (elName) elName.textContent = fullName;
+      const elReg = document.getElementById('brief-student-reg');
+      if (elReg) elReg.textContent = registerNumber;
+      const elEmail = document.getElementById('brief-student-email');
+      if (elEmail) elEmail.textContent = email;
+      const elConsent = document.getElementById('chk-security-consent');
+      if (elConsent) elConsent.checked = false;
+      const elStartBtn = document.getElementById('btn-start-quiz');
+      if (elStartBtn) elStartBtn.disabled = true;
 
       showScreen('briefing');
+    } catch (submitErr) {
+      console.error('Registration processing error:', submitErr);
+      showRegisterError('An error occurred during verification. Please try again.');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Register & Proceed to Security Check →';

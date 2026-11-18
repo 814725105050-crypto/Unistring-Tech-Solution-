@@ -444,6 +444,10 @@ function bindUIEvents() {
 
   document.getElementById('btn-prev-q').addEventListener('click', () => {
     if (!attemptState || attemptState.currentIndex <= 0) return;
+    if (!canNavigateAwayFromCurrentQuestion()) {
+      notifyCooldownRemaining();
+      return;
+    }
     attemptState.currentIndex--;
     attemptState.visited = attemptState.visited || {};
     attemptState.visited[attemptState.currentIndex] = true;
@@ -453,6 +457,10 @@ function bindUIEvents() {
 
   document.getElementById('btn-next-q').addEventListener('click', () => {
     if (!attemptState) return;
+    if (!canNavigateAwayFromCurrentQuestion()) {
+      notifyCooldownRemaining();
+      return;
+    }
     if (attemptState.currentIndex < preparedQuestions.length - 1) {
       attemptState.currentIndex++;
       attemptState.visited = attemptState.visited || {};
@@ -467,6 +475,10 @@ function bindUIEvents() {
   const desktopSubmitBtn = document.getElementById('btn-desktop-submit');
   if (desktopSubmitBtn) {
     desktopSubmitBtn.addEventListener('click', () => {
+      if (!canNavigateAwayFromCurrentQuestion()) {
+        notifyCooldownRemaining();
+        return;
+      }
       openSubmitConfirmation();
     });
   }
@@ -689,8 +701,73 @@ function showWarningCurtainUI(warningsUsed, maxWarnings, reason, remainingSecond
 /* -------------------------------------------------------------------------- */
 
 // 3-Second First-View timer per question
-let questionEnterTimestamp = 0;
 let questionCooldownTimer = null;
+let currentQuestionCanNavigate = true;
+
+function canNavigateAwayFromCurrentQuestion() {
+  if (!attemptState) return true;
+  const idx = attemptState.currentIndex;
+  attemptState.questionSpentSec = attemptState.questionSpentSec || {};
+  return (attemptState.questionSpentSec[idx] || 0) >= 3;
+}
+
+function notifyCooldownRemaining() {
+  if (!attemptState) return;
+  const idx = attemptState.currentIndex;
+  const spent = (attemptState.questionSpentSec && attemptState.questionSpentSec[idx]) || 0;
+  const remaining = Math.max(1, 3 - spent);
+  
+  let toast = document.getElementById('cooldown-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'cooldown-toast';
+    toast.style.position = 'fixed';
+    toast.style.bottom = '85px';
+    toast.style.left = '50%';
+    toast.style.transform = 'translateX(-50%)';
+    toast.style.background = '#293262';
+    toast.style.color = '#fff';
+    toast.style.padding = '8px 16px';
+    toast.style.borderRadius = '999px';
+    toast.style.fontSize = '12px';
+    toast.style.fontWeight = '700';
+    toast.style.zIndex = '9999';
+    toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    toast.style.pointerEvents = 'none';
+    toast.style.transition = 'opacity 0.2s ease';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = `⏱ Please review for ${remaining}s before switching`;
+  toast.style.opacity = '1';
+  clearTimeout(toast._hideTimer);
+  toast._hideTimer = setTimeout(() => {
+    toast.style.opacity = '0';
+  }, 1200);
+}
+
+function updatePaletteDisabledState() {
+  const isLocked = !canNavigateAwayFromCurrentQuestion();
+  const currentIdx = attemptState ? attemptState.currentIndex : -1;
+  document.querySelectorAll('.palette-cell').forEach(btn => {
+    const btnIdx = Number(btn.getAttribute('data-q-idx'));
+    if (isLocked && btnIdx !== currentIdx) {
+      btn.classList.add('palette-locked');
+      btn.style.opacity = '0.5';
+      btn.style.cursor = 'not-allowed';
+    } else {
+      btn.classList.remove('palette-locked');
+      btn.style.opacity = '';
+      btn.style.cursor = '';
+    }
+  });
+
+  const prevBtn = document.getElementById('btn-prev-q');
+  if (prevBtn && isLocked) {
+    prevBtn.disabled = true;
+  } else if (prevBtn && currentIdx > 0) {
+    prevBtn.disabled = false;
+  }
+}
 
 function startQuestionCooldown() {
   if (questionCooldownTimer) clearInterval(questionCooldownTimer);
@@ -703,10 +780,14 @@ function startQuestionCooldown() {
 
   const alreadyMet = (attemptState.questionSpentSec[idx] || 0) >= 3;
   if (alreadyMet) {
+    currentQuestionCanNavigate = true;
     if (nextBtn) nextBtn.disabled = false;
     if (desktopSubmitBtn) desktopSubmitBtn.disabled = false;
+    updatePaletteDisabledState();
     return;
   }
+
+  currentQuestionCanNavigate = false;
 
   // Disable Next until 3 seconds spent for first time viewing this question
   let remainingSec = 3 - (attemptState.questionSpentSec[idx] || 0);
@@ -719,6 +800,7 @@ function startQuestionCooldown() {
   if (desktopSubmitBtn) {
     desktopSubmitBtn.disabled = true;
   }
+  updatePaletteDisabledState();
 
   questionCooldownTimer = setInterval(() => {
     remainingSec--;
@@ -726,6 +808,7 @@ function startQuestionCooldown() {
     if (remainingSec <= 0) {
       clearInterval(questionCooldownTimer);
       questionCooldownTimer = null;
+      currentQuestionCanNavigate = true;
       attemptState.questionSpentSec[idx] = 3;
       persistAttemptLocal();
       if (nextBtn) {
@@ -735,10 +818,12 @@ function startQuestionCooldown() {
       if (desktopSubmitBtn) {
         desktopSubmitBtn.disabled = false;
       }
+      updatePaletteDisabledState();
     } else {
       if (nextBtn) {
         nextBtn.textContent = `${originalText} (${remainingSec}s)`;
       }
+      updatePaletteDisabledState();
     }
   }, 1000);
 }
@@ -847,12 +932,18 @@ function renderPaletteGrid() {
   preparedQuestions.forEach((q, idx) => {
     const btn = document.createElement('button');
     btn.type = 'button';
+    btn.setAttribute('data-q-idx', String(idx));
     const status = getQuestionStatus(q, idx);
     const isCurrent = idx === attemptState.currentIndex;
 
     btn.className = `palette-cell ${status}${isCurrent ? ' current' : ''}`;
     btn.textContent = String(idx + 1);
     btn.addEventListener('click', () => {
+      if (idx === attemptState.currentIndex) return;
+      if (!canNavigateAwayFromCurrentQuestion()) {
+        notifyCooldownRemaining();
+        return;
+      }
       attemptState.currentIndex = idx;
       attemptState.visited = attemptState.visited || {};
       attemptState.visited[idx] = true;
@@ -862,6 +953,7 @@ function renderPaletteGrid() {
     });
     grid.appendChild(btn);
   });
+  updatePaletteDisabledState();
 }
 
 function renderDesktopPaletteSidebar() {
@@ -883,12 +975,18 @@ function renderDesktopPaletteSidebar() {
 
     const btn = document.createElement('button');
     btn.type = 'button';
+    btn.setAttribute('data-q-idx', String(idx));
     const isCurrent = idx === attemptState.currentIndex;
     btn.className = `palette-cell ${status}${isCurrent ? ' current' : ''}`;
     btn.textContent = String(idx + 1);
     btn.title = `Question ${idx + 1}: ${status.replace('-', ' ').toUpperCase()}`;
 
     btn.addEventListener('click', () => {
+      if (idx === attemptState.currentIndex) return;
+      if (!canNavigateAwayFromCurrentQuestion()) {
+        notifyCooldownRemaining();
+        return;
+      }
       attemptState.currentIndex = idx;
       attemptState.visited = attemptState.visited || {};
       attemptState.visited[idx] = true;
@@ -897,6 +995,7 @@ function renderDesktopPaletteSidebar() {
     });
     grid.appendChild(btn);
   });
+  updatePaletteDisabledState();
 
   const elA = document.getElementById('leg-count-answered');
   if (elA) elA.textContent = String(countAnswered);

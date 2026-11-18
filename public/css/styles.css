@@ -992,6 +992,12 @@ body.in-exam .app-shell {
     border: 1px dashed #94a3b8;
   }
 
+  .palette-cell.palette-locked {
+    cursor: not-allowed !important;
+    opacity: 0.45 !important;
+    transform: none !important;
+  }
+
   .desktop-palette-sidebar .palette-grid {
     grid-template-columns: repeat(5, 1fr);
     max-height: 380px;

@@ -2,15 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Strictly locks administrative privileges to authorized Unistring Tech Solution coordinators
+    // Strictly locks administrative privileges to authorized trp.srmtrichy.edu.in email
     function isAuthorizedAdmin() {
       return request.auth != null
         && request.auth.token.email != null
-        && (
-          request.auth.token.email.lower() == 'admin@unistring.com'
-          || request.auth.token.email.lower() == '814725105014@trp.srmtrichy.edu.in'
-          || request.auth.token.email.lower().matches('.*@unistring[.]com$')
-        );
+        && request.auth.token.email.lower() == '814725105014@trp.srmtrichy.edu.in';
     }
 
     // Portal configuration & question bank: readable by candidates, editable ONLY by Admin

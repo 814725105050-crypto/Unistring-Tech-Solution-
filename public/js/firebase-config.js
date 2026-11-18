@@ -44,20 +44,18 @@ export function isFirebaseConfigured(cfg = getEffectiveFirebaseConfig()) {
 
 /**
  * Admin Credentials Policy
- * Accepts either admin@unistring.com or existing admin credentials.
+ * Strictly locks to authorized trp.srmtrichy.edu.in admin mail.
  */
 export const ADMIN_ACCESS = Object.freeze({
   allowedEmails: [
-    'admin@unistring.com',
     '814725105014@trp.srmtrichy.edu.in'
   ],
-  allowedEmail: 'admin@unistring.com',
-  // SHA-256 of "Admin@UTS2026" and fallback "Hari@EEE29"
+  allowedEmail: '814725105014@trp.srmtrichy.edu.in',
   allowedPasswordHashes: [
-    'e9447e45300f2ae9b276d4df997871b699a7065961d6ecbcfd5069b2d8697193', // Admin@UTS2026
-    '02ec78533da916a8a24392b408d3a32aa4a5d766bf5632b40f08a5d230c4f920'  // Hari@EEE29
+    '02ec78533da916a8a24392b408d3a32aa4a5d766bf5632b40f08a5d230c4f920', // Hari@EEE29
+    'e9447e45300f2ae9b276d4df997871b699a7065961d6ecbcfd5069b2d8697193'  // Admin@UTS2026
   ],
-  passwordSha256: 'e9447e45300f2ae9b276d4df997871b699a7065961d6ecbcfd5069b2d8697193'
+  passwordSha256: '02ec78533da916a8a24392b408d3a32aa4a5d766bf5632b40f08a5d230c4f920'
 });
 
 /**

@@ -631,6 +631,61 @@ function showWarningCurtainUI(warningsUsed, maxWarnings, reason, remainingSecond
 /* Question & Palette Rendering                                               */
 /* -------------------------------------------------------------------------- */
 
+// 3-Second First-View timer per question
+let questionEnterTimestamp = 0;
+let questionCooldownTimer = null;
+
+function startQuestionCooldown() {
+  if (questionCooldownTimer) clearInterval(questionCooldownTimer);
+
+  const idx = attemptState.currentIndex;
+  attemptState.questionSpentSec = attemptState.questionSpentSec || {};
+
+  const nextBtn = document.getElementById('btn-next-q');
+  const desktopSubmitBtn = document.getElementById('btn-desktop-submit');
+
+  const alreadyMet = (attemptState.questionSpentSec[idx] || 0) >= 3;
+  if (alreadyMet) {
+    if (nextBtn) nextBtn.disabled = false;
+    if (desktopSubmitBtn) desktopSubmitBtn.disabled = false;
+    return;
+  }
+
+  // Disable Next until 3 seconds spent for first time viewing this question
+  let remainingSec = 3 - (attemptState.questionSpentSec[idx] || 0);
+  const originalText = idx === preparedQuestions.length - 1 ? 'Finish & Submit ✓' : 'Next →';
+
+  if (nextBtn) {
+    nextBtn.disabled = true;
+    nextBtn.textContent = `${originalText} (${remainingSec}s)`;
+  }
+  if (desktopSubmitBtn) {
+    desktopSubmitBtn.disabled = true;
+  }
+
+  questionCooldownTimer = setInterval(() => {
+    remainingSec--;
+    attemptState.questionSpentSec[idx] = 3 - remainingSec;
+    if (remainingSec <= 0) {
+      clearInterval(questionCooldownTimer);
+      questionCooldownTimer = null;
+      attemptState.questionSpentSec[idx] = 3;
+      persistAttemptLocal();
+      if (nextBtn) {
+        nextBtn.disabled = false;
+        nextBtn.textContent = originalText;
+      }
+      if (desktopSubmitBtn) {
+        desktopSubmitBtn.disabled = false;
+      }
+    } else {
+      if (nextBtn) {
+        nextBtn.textContent = `${originalText} (${remainingSec}s)`;
+      }
+    }
+  }, 1000);
+}
+
 function renderCurrentQuestion() {
   if (!attemptState || !preparedQuestions.length) return;
   const idx = attemptState.currentIndex;
@@ -708,6 +763,9 @@ function renderCurrentQuestion() {
     nextBtn.textContent = 'Next →';
     nextBtn.className = 'btn btn-primary';
   }
+
+  // Start the 3-second reading delay for first-time visits
+  startQuestionCooldown();
 
   // Update both mobile drawer & desktop sidebar palettes
   renderPaletteGrid();

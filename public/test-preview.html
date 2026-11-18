@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#3b0764" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="referrer" content="no-referrer" />
+  <title>UTS Assessment · Disposable Student Sandbox Preview</title>
+  <link rel="preload" as="image" href="/assets/uts-logo.png" />
+  <link rel="icon" type="image/png" href="/assets/uts-logo.png" />
+  <link rel="apple-touch-icon" href="/assets/uts-logo.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <script>
+    (function() {
+      try {
+        var raw = localStorage.getItem('uts_portal_settings_v1');
+        if (raw) {
+          var s = JSON.parse(raw);
+          if (s && s.logoUrl) {
+            window.__UTS_PRELOADED_LOGO__ = s.logoUrl;
+          }
+        }
+      } catch(e) {}
+    })();
+  </script>
+</head>
+
+<body>
+  <!-- Tester Banner -->
+  <div style="background:linear-gradient(90deg, #b45309, #d97706); color:#fff; text-align:center; padding:8px 12px; font-size:12.5px; font-weight:700; z-index:99999; position:sticky; top:0;">
+    🛠️ Internal Sandbox Tester View: Instant 1-Click Entry (No Login Required · Isolated &amp; Disposable)
+  </div>
+
+  <!-- =====================================================================
+       INSTANT OPAQUE SECURITY CURTAIN & 20-SEC RETURN WARNING MODAL
+       Blocks Circle-to-Search, App Switcher Preview & Enforces 20s Return
+       ===================================================================== -->
+  <div id="security-curtain" role="alertdialog" aria-modal="true" aria-labelledby="warning-title">
+    <div class="warning-card">
+      <span id="warning-badge-text" class="warning-badge">Security Warning 1 of 2</span>
+      <h2 id="warning-title" style="margin: 12px 0 6px; font-size: 20px; color: #3b0764;">
+        Prohibited Screen Activity Detected!
+      </h2>
+      <p id="warning-reason-text" style="margin: 0; font-size: 13.5px; color: #b91c1c; font-weight: 700;">
+        Mobile tab switch / screen focus lost
+      </p>
+
+      <div class="countdown-ring">
+        <strong id="warning-countdown-num">20</strong>
+        <span>Seconds Left</span>
+      </div>
+
+      <p style="margin: 0 0 16px; font-size: 13px; color: #4a3869; line-height: 1.5;">
+        Return and tap the button below within <strong id="warning-grace-label">20s</strong>.
+        If this timer reaches <strong>0</strong> (or after <strong>2 warnings</strong>), your quiz will
+        <strong>auto-submit immediately</strong>.
+      </p>
+
+      <button type="button" id="btn-resume-exam" class="btn btn-primary btn-full">
+        I'm Back — Resume Quiz in Fullscreen
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MAIN STUDENT PORTAL SHELL (NO ADMIN LINK VISIBLE TO STUDENTS)
+       ===================================================================== -->
+  <main id="exam-workspace" class="app-shell">
+
+    <!-- Royal Purple & Gold Brand Header -->
+    <header id="portal-brand-header" class="brand-bar">
+      <div class="brand-id">
+        <div class="brand-emblem">
+          <img id="portal-header-logo" src="/assets/uts-logo.png" alt="Unistring Tech Solution Logo" onload="if(window.__UTS_PRELOADED_LOGO__ && this.src !== window.__UTS_PRELOADED_LOGO__) this.src = window.__UTS_PRELOADED_LOGO__;" />
+        </div>
+        <div class="brand-titles">
+          <h1 id="header-club-name">Unistring Tech Solution</h1>
+          <p id="header-college-name">Placement Drive Assessment</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===================================================================
+         SCREEN 1: PARTICIPANT REGISTRATION
+         =================================================================== -->
+    <section id="screen-register">
+      <div class="card glass3d">
+        <div class="club-logo-showcase">
+          <img id="landing-showcase-logo" src="/assets/uts-logo.png" alt="Unistring Tech Solution" onload="if(window.__UTS_PRELOADED_LOGO__ && this.src !== window.__UTS_PRELOADED_LOGO__) this.src = window.__UTS_PRELOADED_LOGO__;" />
+        </div>
+
+        <div style="text-align: center;">
+          <div class="hero-chip">
+            <span id="live-status-dot"
+              style="width:7px;height:7px;border-radius:50%;background:#d97706;display:inline-block;"></span>
+            <span id="live-status-label">Placement Drive Assessment</span>
+          </div>
+
+          <h2 id="landing-quiz-title" class="card-title">Placement Drive Assessment</h2>
+          <p id="landing-workshop-subtitle" class="card-subtitle">
+            Online Technical &amp; Aptitude Assessment
+          </p>
+        </div>
+
+        <div class="meta-strip">
+          <div class="meta-tile">
+            <strong id="meta-q-count">50</strong>
+            <span>Questions</span>
+          </div>
+          <div class="meta-tile">
+            <strong id="meta-duration">45 Min</strong>
+            <span>Time Limit</span>
+          </div>
+          <div class="meta-tile">
+            <strong>Online</strong>
+            <span>Assessment</span>
+          </div>
+        </div>
+
+        <div id="quiz-closed-banner" class="alert alert-error hidden">
+          <strong>Assessment Currently Closed:</strong> The administrator has paused new assessment attempts. Please
+          wait for instructions.
+        </div>
+
+        <div id="register-error" class="alert alert-error hidden"></div>
+
+        <!-- Instant One-Click Sandbox Launcher (No Login Required) -->
+        <div style="margin-bottom:18px; padding:14px; background:#fffbeb; border:1.5px solid #d97706; border-radius:12px; text-align:center;">
+          <h3 style="margin:0 0 6px; font-size:16px; color:#78350f;">One-Click Direct Test Access</h3>
+          <p style="margin:0 0 12px; font-size:13px; color:#92400e;">
+            Select a slot to preview the exact student exam experience instantly without typing email or register numbers:
+          </p>
+          <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            <button type="button" id="btn-quick-launch-s1" class="btn btn-gold btn-sm" style="font-size:13px; font-weight:800;">
+              ⚡ Launch Slot 1 Preview (Instant)
+            </button>
+            <button type="button" id="btn-quick-launch-s2" class="btn btn-primary btn-sm" style="font-size:13px; font-weight:800;">
+              ⚡ Launch Slot 2 Preview (Instant)
+            </button>
+            <button type="button" id="btn-reset-sandbox" class="btn btn-danger btn-sm" style="font-size:13px;">
+              🗑️ Clear Disposable Test Data
+            </button>
+          </div>
+        </div>
+
+        <form id="registration-form" novalidate>
+          <div class="form-grid">
+            <div class="field">
+              <label for="reg-name">Candidate Full Name <span class="req">*</span></label>
+              <input type="text" id="reg-name" name="fullName" placeholder="e.g. John Doe" autocomplete="name"
+                required />
+              <span class="field-hint">Please enter your full official name.</span>
+            </div>
+
+            <div class="field">
+              <label for="reg-email">Official College Email <span class="req">*</span></label>
+              <input type="email" id="reg-email" name="email" placeholder="e.g. 814725105001@trp.srmtrichy.edu.in" autocomplete="email" required />
+              <span class="field-hint">Must use your official @trp.srmtrichy.edu.in email ID.</span>
+            </div>
+          </div>
+
+          <div class="form-grid two-col" style="margin-top: 14px;">
+            <div class="field">
+              <label for="reg-number">Candidate / Register ID <span class="req">*</span></label>
+              <input type="text" id="reg-number" name="registerNumber" placeholder="e.g. UTS2026-001" required />
+            </div>
+
+            <div class="field">
+              <label for="reg-phone">Mobile / WhatsApp No. <span class="req">*</span></label>
+              <input type="tel" id="reg-phone" name="phone" placeholder="10-digit mobile number" inputmode="numeric"
+                maxlength="15" required />
+            </div>
+          </div>
+
+          <div class="form-grid" style="margin-top: 14px;">
+            <div class="field">
+              <label for="reg-year">Year of Study <span class="req">*</span></label>
+              <select id="reg-year" name="year" required>
+                <option value="IV Year" selected>IV Year</option>
+              </select>
+            </div>
+
+            <div id="access-code-field" class="field hidden">
+              <label for="reg-passcode">Drive Access PIN <span class="req">*</span></label>
+              <input type="text" id="reg-passcode" name="accessCode" placeholder="Enter PIN announced by coordinator"
+                autocomplete="off" />
+            </div>
+          </div>
+
+          <button type="submit" id="btn-register-continue" class="btn btn-primary btn-full" style="margin-top: 20px;">
+            Register &amp; Proceed to Security Check →
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SCREEN 2: SECURITY RULES BRIEFING & FULLSCREEN LOCK GATE
+         =================================================================== -->
+    <section id="screen-briefing" class="hidden">
+      <div class="card glass3d">
+        <div class="hero-chip">Mandatory Security Briefing</div>
+        <h2 class="card-title">Strict Anti-Cheat Rules</h2>
+        <p class="card-subtitle">
+          Candidate: <strong id="brief-student-name" style="color:#3b0764;"></strong>
+          (<span id="brief-student-reg" style="font-weight:700; color:#b45309;"></span>)
+          · <span id="brief-student-email" style="color:#6d28d9; font-weight:600;"></span>
+        </p>
+
+        <ul class="rules-list">
+          <li>
+            <span class="rules-icon">1</span>
+            <div>
+              <strong style="color:#3b0764;">Zero Tab / App Switching:</strong>
+              Switching browser tabs, minimizing the browser, pulling down the notification bar, or using split-screen
+              triggers an immediate violation.
+            </div>
+          </li>
+          <li>
+            <span class="rules-icon">2</span>
+            <div>
+              <strong style="color:#3b0764;">Circle to Search &amp; Screen Copy Blocked:</strong>
+              Long-press navigation triggers, Google Lens / Circle to Search, text copy, and multi-finger screenshots
+              immediately lock the screen and log a violation.
+            </div>
+          </li>
+          <li>
+            <span class="rules-icon">3</span>
+            <div>
+              <strong style="color:#3b0764;"><span id="brief-max-warn">2</span> Warnings &amp; <span
+                  id="brief-grace-sec">20</span>-Second Return Timer:</strong>
+              If you leave the exam screen, a <strong id="brief-grace-sec-2">20</strong>-second countdown starts
+              immediately. Failing to return within <span id="brief-grace-sec-3">20</span>s — or triggering a 3rd
+              violation — <strong>auto-submits your test</strong>.
+            </div>
+          </li>
+        </ul>
+
+        <label class="consent-box" for="chk-security-consent">
+          <input type="checkbox" id="chk-security-consent" />
+          <span>
+            I have enabled <strong>Do Not Disturb (DND)</strong> on my device and understand that tab switching or
+            Circle-to-Search will auto-submit my test.
+          </span>
+        </label>
+
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px;">
+          <button type="button" id="btn-back-edit-reg" class="btn btn-secondary">
+            ← Edit Info
+          </button>
+          <button type="button" id="btn-start-quiz" class="btn btn-gold" disabled>
+            Lock Screen &amp; Start Assessment
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SCREEN 3: PROCTORED MOBILE QUIZ INTERFACE
+         =================================================================== -->
+    <section id="screen-quiz" class="hidden">
+      <!-- Sticky Top Proctoring + Timer Bar -->
+      <div class="exam-sticky-top">
+        <div class="exam-top-row">
+          <div id="exam-timer-pill" class="timer-pill">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span id="exam-timer-text">45:00</span>
+          </div>
+
+          <div id="exam-shield-pill" class="shield-pill">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span id="exam-warning-counter">0/2 Warn</span>
+          </div>
+
+          <button type="button" id="btn-open-palette" class="btn btn-secondary btn-sm">
+            <span id="answered-counter-text">0/50</span> ▦
+          </button>
+        </div>
+
+        <div class="progress-track">
+          <div id="exam-progress-fill" class="progress-fill" style="width: 3.3%;"></div>
+        </div>
+      </div>
+
+      <!-- Question Display & Desktop Sidebar Layout -->
+      <div class="exam-layout-wrapper">
+        <div class="exam-main-pane">
+          <!-- Canvas-Protected Question Display (Anti Circle-to-Search / Anti-Copy) -->
+          <div class="question-canvas-wrap">
+            <canvas id="question-canvas" aria-label="Assessment Question"></canvas>
+            <div id="question-fallback-text" class="card hidden"
+              style="font-size: 17px; font-weight: 700; margin-bottom: 0; color: #1e1035;"></div>
+          </div>
+
+          <!-- Touch-Friendly Options -->
+          <div id="options-container" class="options-stack"></div>
+
+          <!-- Sticky Mobile Thumb Bar / Desktop Action Bar -->
+          <div class="exam-bottom-bar">
+            <div class="exam-bottom-inner">
+              <button type="button" id="btn-prev-q" class="btn btn-secondary">
+                ← Prev
+              </button>
+              <button type="button" id="btn-flag-q" class="btn btn-secondary" title="Mark for Review">
+                ⚑ Review
+              </button>
+              <button type="button" id="btn-next-q" class="btn btn-primary">
+                Next →
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desktop Right Sidebar Palette & Status Legend -->
+        <aside class="desktop-palette-sidebar glass3d">
+          <div class="sidebar-header">
+            <strong>Question Palette</strong>
+            <span id="desktop-slot-indicator" class="slot-badge">Slot 1</span>
+          </div>
+
+          <!-- Comprehensive Status Legend: Answered, Not Answered, Marked for Review, Not Visited -->
+          <div class="palette-legend">
+            <div class="legend-item"><span class="legend-swatch answered"></span> Answered (<b id="leg-count-answered">0</b>)</div>
+            <div class="legend-item"><span class="legend-swatch not-answered"></span> Not Answered (<b id="leg-count-not-answered">0</b>)</div>
+            <div class="legend-item"><span class="legend-swatch flagged"></span> Marked for Review (<b id="leg-count-flagged">0</b>)</div>
+            <div class="legend-item"><span class="legend-swatch not-visited"></span> Not Visited (<b id="leg-count-not-visited">0</b>)</div>
+          </div>
+
+          <div id="desktop-palette-grid" class="palette-grid"></div>
+
+          <button type="button" id="btn-desktop-submit" class="btn btn-gold btn-full" style="margin-top: 14px;">
+            Finish &amp; Submit Assessment
+          </button>
+        </aside>
+      </div>
+
+      <!-- Slide-up Mobile Question Palette + Submit Sheet -->
+      <div id="palette-drawer" class="palette-backdrop hidden">
+        <div class="palette-sheet">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size: 16px; color: #3b0764;">Question Navigator</strong>
+            <button type="button" id="btn-close-palette" class="btn btn-secondary btn-sm">Close ✕</button>
+          </div>
+          <div
+            style="display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--text-secondary); margin-top:8px; font-weight:600;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <span><b style="color:#5b21b6;">●</b> Answered</span>
+              <span><b style="color:#b91c1c;">●</b> Not Answered</span>
+              <span><b style="color:#d97706;">●</b> Review</span>
+              <span><b style="color:#94a3b8;">●</b> Not Visited</span>
+            </div>
+          </div>
+
+          <div id="palette-grid" class="palette-grid"></div>
+
+          <button type="button" id="btn-open-submit-confirm" class="btn btn-gold btn-full">
+            Finish &amp; Submit Assessment Now
+          </button>
+        </div>
+      </div>
+
+      <!-- Final Submit Confirmation Modal -->
+      <div id="submit-confirm-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 400px; text-align: center;">
+          <h3 style="margin: 0 0 8px; font-size: 19px; color: #3b0764;">Submit Your Assessment?</h3>
+          <p id="submit-summary-text" style="margin: 0 0 18px; font-size: 14px; color: var(--text-secondary);">
+            Ready to submit?
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <button type="button" id="btn-cancel-submit" class="btn btn-secondary">
+              Keep Checking
+            </button>
+            <button type="button" id="btn-confirm-submit" class="btn btn-gold">
+              Yes, Submit
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SCREEN 4: SUBMISSION COMPLETE + SCORE
+         =================================================================== -->
+    <section id="screen-result" class="hidden">
+      <div class="card glass3d" style="text-align: center;">
+        <div id="result-mode-chip" class="hero-chip">Submission Confirmed</div>
+        <h2 id="result-heading" class="card-title">Your Assessment Has Been Successfully Recorded</h2>
+        <p id="result-candidate-line" class="card-subtitle" style="margin-bottom: 12px;"></p>
+
+        <!-- Shown when resultVisibility !== 'receipt_only' -->
+        <div id="result-score-section">
+          <div class="score-circle">
+            <strong id="result-score-fraction">--/50</strong>
+            <span id="result-score-percent">--% Score</span>
+          </div>
+        </div>
+
+        <div class="meta-strip" style="margin-top: 12px;">
+          <div class="meta-tile">
+            <strong id="result-time-taken">--</strong>
+            <span>Time Taken</span>
+          </div>
+          <div class="meta-tile">
+            <strong id="result-warnings-used">0 / 2</strong>
+            <span>Warnings</span>
+          </div>
+          <div class="meta-tile">
+            <strong id="result-submit-type">Manual</strong>
+            <span>Submit Type</span>
+          </div>
+        </div>
+
+        <div id="result-autosubmit-alert" class="alert alert-error hidden" style="text-align: left;"></div>
+
+        <!-- Optional Answer Review (only shown when Admin sets resultVisibility === 'full_answers') -->
+        <div id="result-answers-review" class="hidden" style="text-align: left; margin-top: 22px;">
+          <h3 style="font-size: 16px; margin-bottom: 12px; color: #3b0764;">Detailed Answer Review</h3>
+          <div id="result-answers-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module" src="/js/test-preview-app.js"></script>
+</body>
+
+</html>

@@ -188,7 +188,7 @@ function sanitizeVerifySetting(settingsObj) {
   return out;
 }
 
-function getLocalSettings() {
+export function getLocalSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     if (raw) return sanitizeVerifySetting({ ...DEFAULT_PORTAL_SETTINGS, ...JSON.parse(raw) });
@@ -287,7 +287,7 @@ export async function subscribeToPortalSettings(onSettings) {
 /* Question Bank                                                              */
 /* -------------------------------------------------------------------------- */
 
-function getLocalQuestions(slot = 1) {
+export function getLocalQuestions(slot = 1) {
   try {
     const key = slot === 2 ? STORAGE_KEYS.QUESTIONS_SLOT2 : STORAGE_KEYS.QUESTIONS_SLOT1;
     const raw = localStorage.getItem(key) || (slot === 1 ? localStorage.getItem(STORAGE_KEYS.QUESTIONS) : null);

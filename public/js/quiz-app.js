@@ -5,6 +5,8 @@
 
 import {
   checkExistingSubmission,
+  getLocalQuestions,
+  getLocalSettings,
   loadPortalSettings,
   loadQuestions,
   recordQuizSubmission,
@@ -112,16 +114,32 @@ function showScreen(name) {
 /* -------------------------------------------------------------------------- */
 
 async function initPortal() {
-  settings = await loadPortalSettings();
-  rawQuestions = await loadQuestions(Number(settings.activeSlot || 1));
+  // Render immediately with fast cached/default values so students never see a delay or freeze
+  settings = getLocalSettings();
+  const currentSlot = Number(settings.activeSlot || 1);
+  rawQuestions = getLocalQuestions(currentSlot);
 
   applySettingsToLandingUI();
   bindUIEvents();
 
+  // Non-blocking parallel background sync
+  (async () => {
+    try {
+      const [freshSettings, freshQuestions] = await Promise.all([
+        loadPortalSettings(),
+        loadQuestions(currentSlot)
+      ]);
+      settings = freshSettings;
+      rawQuestions = freshQuestions;
+      if (!attemptState) {
+        applySettingsToLandingUI();
+      }
+    } catch (_) {}
+  })();
+
   // Real-time synchronization: dynamically update without requiring manual page reload!
   subscribeToPortalSettings(async (newSettings) => {
     const prevSlot = settings?.activeSlot;
-    const prevOpen = settings?.quizOpen;
     settings = newSettings;
 
     if (!attemptState) {

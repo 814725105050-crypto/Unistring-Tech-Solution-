@@ -265,6 +265,7 @@ function bindDashboardEvents() {
       quizTitle: document.getElementById('cfg-quiz-title').value.trim(),
       conductedBy: document.getElementById('cfg-conducted-by').value.trim(),
       durationMinutes: Math.max(5, Number(document.getElementById('cfg-duration').value || 30)),
+      minSubmissionMinutes: Math.max(0, Number(document.getElementById('cfg-min-submit')?.value || 0)),
       examAccessCode: document.getElementById('cfg-hall-pin').value.trim(),
       maxWarnings: Math.max(0, Number(document.getElementById('cfg-max-warnings').value ?? 2)),
       returnGraceSeconds: Math.max(5, Number(document.getElementById('cfg-grace-sec').value ?? 20)),
@@ -516,6 +517,8 @@ function populateSettingsForms() {
   document.getElementById('cfg-quiz-title').value = settings.quizTitle || 'Placement Drive Assessment';
   document.getElementById('cfg-conducted-by').value = settings.conductedBy || 'Unistring Tech Solution';
   document.getElementById('cfg-duration').value = settings.durationMinutes ?? 45;
+  const minSubEl = document.getElementById('cfg-min-submit');
+  if (minSubEl) minSubEl.value = settings.minSubmissionMinutes ?? 0;
   document.getElementById('cfg-hall-pin').value = settings.examAccessCode || '';
   document.getElementById('cfg-max-warnings').value = settings.maxWarnings ?? 2;
   document.getElementById('cfg-grace-sec').value = settings.returnGraceSeconds ?? 20;

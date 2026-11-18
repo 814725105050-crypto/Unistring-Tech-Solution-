@@ -71,6 +71,7 @@ export const DEFAULT_PORTAL_SETTINGS = {
   organizationName: 'Unistring Tech Solution',
   logoUrl: '/assets/uts-logo.png',
   durationMinutes: 30,
+  minSubmissionMinutes: 0,
   maxWarnings: 2,
   returnGraceSeconds: 20,
   shuffleQuestions: true,

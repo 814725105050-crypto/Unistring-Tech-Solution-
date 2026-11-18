@@ -411,6 +411,10 @@ function bindUIEvents() {
       persistAttemptLocal();
       renderCurrentQuestion();
     } else {
+      if (!canSubmitAssessment()) {
+        notifySubmissionTimerRemaining();
+        return;
+      }
       openSubmitConfirmation();
     }
   });
@@ -420,6 +424,10 @@ function bindUIEvents() {
     desktopSubmitBtn.addEventListener('click', () => {
       if (!canNavigateAwayFromCurrentQuestion()) {
         notifyCooldownRemaining();
+        return;
+      }
+      if (!canSubmitAssessment()) {
+        notifySubmissionTimerRemaining();
         return;
       }
       openSubmitConfirmation();
@@ -444,6 +452,10 @@ function bindUIEvents() {
   });
   document.getElementById('btn-open-submit-confirm').addEventListener('click', () => {
     document.getElementById('palette-drawer').classList.add('hidden');
+    if (!canSubmitAssessment()) {
+      notifySubmissionTimerRemaining();
+      return;
+    }
     openSubmitConfirmation();
   });
 
@@ -451,6 +463,11 @@ function bindUIEvents() {
     document.getElementById('submit-confirm-modal').classList.add('hidden');
   });
   document.getElementById('btn-confirm-submit').addEventListener('click', () => {
+    if (!canSubmitAssessment()) {
+      document.getElementById('submit-confirm-modal').classList.add('hidden');
+      notifySubmissionTimerRemaining();
+      return;
+    }
     document.getElementById('submit-confirm-modal').classList.add('hidden');
     finalizeQuizSubmission('Manual Submit', false);
   });
@@ -591,6 +608,31 @@ function launchActiveQuiz() {
       '0'
     )}:${String(secs).padStart(2, '0')}`;
 
+    const remSec = getRemainingSubmissionLockSec();
+    const canSubmit = remSec <= 0;
+    const desktopSubmitBtn = document.getElementById('btn-desktop-submit');
+    const mobileSubmitBtn = document.getElementById('btn-open-submit-confirm');
+    if (desktopSubmitBtn) {
+      if (!canSubmit) {
+        const m = Math.floor(remSec / 60);
+        const s = remSec % 60;
+        desktopSubmitBtn.textContent = `Submit Locked (${m > 0 ? `${m}m ` : ''}${s}s)`;
+        desktopSubmitBtn.title = `Early submission locked by administrator until timer elapses.`;
+      } else {
+        desktopSubmitBtn.textContent = 'Finish & Submit Assessment';
+        desktopSubmitBtn.title = '';
+      }
+    }
+    if (mobileSubmitBtn) {
+      if (!canSubmit) {
+        const m = Math.floor(remSec / 60);
+        const s = remSec % 60;
+        mobileSubmitBtn.textContent = `Submit Locked (${m > 0 ? `${m}m ` : ''}${s}s)`;
+      } else {
+        mobileSubmitBtn.textContent = 'Finish & Submit Assessment Now';
+      }
+    }
+
     const pill = document.getElementById('exam-timer-pill');
     pill.classList.toggle('danger', totalSec <= 60);
     pill.classList.toggle('warn', totalSec > 60 && totalSec <= 300);
@@ -646,6 +688,56 @@ function showWarningCurtainUI(warningsUsed, maxWarnings, reason, remainingSecond
 // 3-Second First-View timer per question
 let questionCooldownTimer = null;
 let currentQuestionCanNavigate = true;
+
+function getRemainingSubmissionLockSec() {
+  if (!attemptState || !settings) return 0;
+  const minMinutes = Number(settings.minSubmissionMinutes || 0);
+  if (minMinutes <= 0) return 0;
+  const minRequiredMs = minMinutes * 60 * 1000;
+  const startedAt = Number(attemptState.startedAt || Date.now());
+  const elapsedMs = Date.now() - startedAt;
+  const remMs = minRequiredMs - elapsedMs;
+  return remMs > 0 ? Math.ceil(remMs / 1000) : 0;
+}
+
+function canSubmitAssessment() {
+  return getRemainingSubmissionLockSec() <= 0;
+}
+
+function notifySubmissionTimerRemaining() {
+  const remSec = getRemainingSubmissionLockSec();
+  if (remSec <= 0) return;
+  const mins = Math.floor(remSec / 60);
+  const secs = remSec % 60;
+  const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+
+  let toast = document.getElementById('cooldown-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'cooldown-toast';
+    toast.style.position = 'fixed';
+    toast.style.bottom = '85px';
+    toast.style.left = '50%';
+    toast.style.transform = 'translateX(-50%)';
+    toast.style.background = '#293262';
+    toast.style.color = '#fff';
+    toast.style.padding = '8px 16px';
+    toast.style.borderRadius = '999px';
+    toast.style.fontSize = '12px';
+    toast.style.fontWeight = '700';
+    toast.style.zIndex = '9999';
+    toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    toast.style.pointerEvents = 'none';
+    toast.style.transition = 'opacity 0.2s ease';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = `⏳ Early submission locked: ${timeStr} remaining`;
+  toast.style.opacity = '1';
+  clearTimeout(toast._hideTimer);
+  toast._hideTimer = setTimeout(() => {
+    toast.style.opacity = '0';
+  }, 2000);
+}
 
 function canNavigateAwayFromCurrentQuestion() {
   if (!attemptState) return true;

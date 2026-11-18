@@ -310,6 +310,11 @@
               <input type="number" id="cfg-duration" min="5" max="180" required />
             </div>
             <div class="field">
+              <label for="cfg-min-submit">Minimum Timer for Submission (Minutes)</label>
+              <input type="number" id="cfg-min-submit" min="0" max="180" placeholder="0 (Immediate submission allowed)" />
+              <span class="field-hint">Students cannot manually submit before this time has elapsed (0 = disabled).</span>
+            </div>
+            <div class="field">
               <label for="cfg-hall-pin">Optional Access PIN (Leave blank for open drive)</label>
               <input type="text" id="cfg-hall-pin" placeholder="e.g. UTS2026" />
             </div>

@@ -195,9 +195,6 @@ function bindUIEvents() {
 
     if (fullName.length < 2) return showRegisterError('Please enter your full name.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showRegisterError('Please enter a valid email address.');
-    if (!email.endsWith('@trp.srmtrichy.edu.in')) {
-      return showRegisterError('Please use your official college email (@trp.srmtrichy.edu.in).');
-    }
     if (registerNumber.length < 2) return showRegisterError('Please enter your Candidate / Register ID.');
     if (!/^\+?\d{7,15}$/.test(phone)) return showRegisterError('Please enter a valid mobile number (at least 7 to 10 digits).');
     if (!year) return showRegisterError('Please select your Qualification / Year.');

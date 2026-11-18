@@ -62,6 +62,8 @@ export const DEFAULT_PORTAL_SETTINGS = {
   activeSlot: 1, // 1 | 2
   slot1Open: true,
   slot2Open: false,
+  slot1UnlockAt: '', // ISO datetime string or empty
+  slot2UnlockAt: '', // ISO datetime string or empty
   quizTitle: 'Placement Drive Assessment',
   workshopName: 'Unistring Placement Assessment',
   courseDuration: 'Placement Drive',

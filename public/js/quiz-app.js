@@ -135,10 +135,37 @@ async function initPortal() {
   await tryRestoreActiveAttempt();
 }
 
+function isSlotUnlockedNow(slotNum, settings) {
+  const isManuallyOpen = slotNum === 2 ? settings.slot2Open !== false : settings.slot1Open !== false;
+  const unlockDateStr = slotNum === 2 ? settings.slot2UnlockAt : settings.slot1UnlockAt;
+
+  if (unlockDateStr) {
+    const unlockTime = new Date(unlockDateStr).getTime();
+    if (!isNaN(unlockTime)) {
+      if (Date.now() < unlockTime) {
+        return {
+          unlocked: false,
+          reason: `Slot ${slotNum} unlocks on ${new Date(unlockTime).toLocaleString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}`
+        };
+      }
+    }
+  }
+
+  if (!isManuallyOpen) {
+    return { unlocked: false, reason: `Slot ${slotNum} is currently paused by coordinator.` };
+  }
+  return { unlocked: true };
+}
+
 function applySettingsToLandingUI() {
   const currentSlot = Number(settings.activeSlot || 1);
-  const isCurrentSlotOpen = currentSlot === 2 ? settings.slot2Open !== false : settings.slot1Open !== false;
-  const isOverallOpen = settings.quizOpen !== false && isCurrentSlotOpen;
+  const slotCheck = isSlotUnlockedNow(currentSlot, settings);
+  const isOverallOpen = settings.quizOpen !== false && slotCheck.unlocked;
 
   const activeLogo = settings.logoUrl || '/assets/uts-logo.png';
   const headerLogo = document.getElementById('portal-header-logo');
@@ -168,10 +195,10 @@ function applySettingsToLandingUI() {
 
   if (!isOverallOpen) {
     closedBanner.classList.remove('hidden');
-    closedBanner.innerHTML = `<strong>Assessment Currently Closed:</strong> Slot ${currentSlot} is currently closed. Please wait for the coordinator to open the slot.`;
+    closedBanner.innerHTML = `<strong>Assessment Notice:</strong> ${slotCheck.reason || `Slot ${currentSlot} is currently closed.`}`;
     submitBtn.disabled = true;
     dot.style.background = '#dc2626';
-    statusLabel.textContent = `Slot ${currentSlot} Paused`;
+    statusLabel.textContent = `Slot ${currentSlot} Locked`;
   } else {
     closedBanner.classList.add('hidden');
     submitBtn.disabled = false;
@@ -203,8 +230,8 @@ function bindUIEvents() {
 
     settings = await loadPortalSettings();
     const currentSlot = Number(settings.activeSlot || 1);
-    const isCurrentSlotOpen = currentSlot === 2 ? settings.slot2Open !== false : settings.slot1Open !== false;
-    if (!settings.quizOpen || !isCurrentSlotOpen) {
+    const slotCheck = isSlotUnlockedNow(currentSlot, settings);
+    if (!settings.quizOpen || !slotCheck.unlocked) {
       applySettingsToLandingUI();
       return;
     }

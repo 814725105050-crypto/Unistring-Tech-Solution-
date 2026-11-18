@@ -230,9 +230,26 @@ function bindDashboardEvents() {
     showToast('Updated candidate post-submission result display mode.');
   });
 
-  // Search & Filter
+  // Search & Filter & Sort
   document.getElementById('sub-search-input').addEventListener('input', renderSubmissionsTable);
   document.getElementById('sub-filter-select').addEventListener('change', renderSubmissionsTable);
+  const sortSel = document.getElementById('sub-sort-select');
+  if (sortSel) sortSel.addEventListener('change', renderSubmissionsTable);
+
+  // Save Clock Unlock Schedule
+  const saveUnlocksBtn = document.getElementById('btn-save-slot-unlocks');
+  if (saveUnlocksBtn) {
+    saveUnlocksBtn.addEventListener('click', async () => {
+      const s1Val = document.getElementById('cfg-slot1-unlock').value;
+      const s2Val = document.getElementById('cfg-slot2-unlock').value;
+      settings = await savePortalSettings({
+        slot1UnlockAt: s1Val ? new Date(s1Val).toISOString() : '',
+        slot2UnlockAt: s2Val ? new Date(s2Val).toISOString() : ''
+      });
+      populateSettingsForms();
+      showToast('Saved slot scheduled clock unlock settings.');
+    });
+  }
 
   // CSV Export
   document.getElementById('btn-export-full-csv').addEventListener('click', () => {
@@ -483,6 +500,16 @@ function populateSettingsForms() {
     slotBadge.textContent = `Slot ${activeSlot} Active for Students (${activeSlot === 1 ? (slot1Open ? 'OPEN' : 'PAUSED') : (slot2Open ? 'OPEN' : 'PAUSED')})`;
   }
 
+  // Populate Clock Unlocks
+  const s1DateInput = document.getElementById('cfg-slot1-unlock');
+  if (s1DateInput) {
+    s1DateInput.value = settings.slot1UnlockAt ? new Date(settings.slot1UnlockAt).toISOString().slice(0, 16) : '';
+  }
+  const s2DateInput = document.getElementById('cfg-slot2-unlock');
+  if (s2DateInput) {
+    s2DateInput.value = settings.slot2UnlockAt ? new Date(settings.slot2UnlockAt).toISOString().slice(0, 16) : '';
+  }
+
   document.getElementById('quick-result-visibility').value =
     settings.resultVisibility || 'score_only';
 
@@ -565,14 +592,40 @@ function renderSubmissionsTable() {
   const tbody = document.getElementById('submissions-tbody');
   const q = document.getElementById('sub-search-input').value.trim().toLowerCase();
   const filter = document.getElementById('sub-filter-select').value;
+  const sortMode = document.getElementById('sub-sort-select') ? document.getElementById('sub-sort-select').value : 'time_desc';
 
-  const filtered = allSubmissions.filter((s) => {
+  let filtered = allSubmissions.filter((s) => {
+    if (filter === 'slot1' && Number(s.slot || 1) !== 1) return false;
+    if (filter === 'slot2' && Number(s.slot || 1) !== 2) return false;
     if (filter === 'autosubmit' && !s.isAutoSubmitted) return false;
     if (filter === 'warned' && !(Number(s.warningsUsed || 0) > 0)) return false;
 
     if (!q) return true;
     const hay = `${s.fullName} ${s.registerNumber} ${s.email} ${s.year || ''}`.toLowerCase();
     return hay.includes(q);
+  });
+
+  filtered.sort((a, b) => {
+    switch (sortMode) {
+      case 'time_asc':
+        return String(a.submittedAt || '').localeCompare(String(b.submittedAt || ''));
+      case 'time_desc':
+        return String(b.submittedAt || '').localeCompare(String(a.submittedAt || ''));
+      case 'score_desc':
+        return Number(b.score || 0) - Number(a.score || 0) || Number(b.percentage || 0) - Number(a.percentage || 0);
+      case 'score_asc':
+        return Number(a.score || 0) - Number(b.score || 0) || Number(a.percentage || 0) - Number(b.percentage || 0);
+      case 'name_asc':
+        return String(a.fullName || '').localeCompare(String(b.fullName || ''));
+      case 'name_desc':
+        return String(b.fullName || '').localeCompare(String(a.fullName || ''));
+      case 'reg_asc':
+        return String(a.registerNumber || '').localeCompare(String(b.registerNumber || ''));
+      case 'warnings_desc':
+        return Number(b.warningsUsed || 0) - Number(a.warningsUsed || 0);
+      default:
+        return 0;
+    }
   });
 
   if (!filtered.length) {

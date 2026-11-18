@@ -204,16 +204,34 @@
             type="search"
             id="sub-search-input"
             placeholder="Search by Name, Candidate ID, or Email..."
-            style="max-width:340px; width:100%; padding:9px 12px; border-radius:9px; background:#fff; border:1.5px solid rgba(91,33,182,0.22); color:#1e1035; font-size:14px;"
+            style="max-width:320px; width:100%; padding:9px 12px; border-radius:9px; background:#fff; border:1.5px solid var(--navy-border); color:var(--text-primary); font-size:14px;"
           />
-          <select
-            id="sub-filter-select"
-            style="padding:9px 12px; border-radius:9px; background:#fff; border:1.5px solid rgba(91,33,182,0.22); color:#1e1035; font-size:13.5px; font-weight:600;"
-          >
-            <option value="all">All Submissions</option>
-            <option value="autosubmit">Auto-Submitted Only</option>
-            <option value="warned">Had Security Warnings (≥1)</option>
-          </select>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <select
+              id="sub-filter-select"
+              style="padding:9px 12px; border-radius:9px; background:#fff; border:1.5px solid var(--navy-border); color:var(--text-primary); font-size:13.5px; font-weight:600;"
+            >
+              <option value="all">All Submissions</option>
+              <option value="slot1">Slot 1 Only</option>
+              <option value="slot2">Slot 2 Only</option>
+              <option value="autosubmit">Auto-Submitted Only</option>
+              <option value="warned">Had Security Warnings (≥1)</option>
+            </select>
+
+            <select
+              id="sub-sort-select"
+              style="padding:9px 12px; border-radius:9px; background:#fff; border:1.5px solid var(--navy-border); color:var(--text-primary); font-size:13.5px; font-weight:600;"
+            >
+              <option value="time_desc">Sort: Newest First</option>
+              <option value="time_asc">Sort: Oldest First</option>
+              <option value="score_desc">Sort: Highest Score</option>
+              <option value="score_asc">Sort: Lowest Score</option>
+              <option value="name_asc">Sort: Candidate Name (A-Z)</option>
+              <option value="name_desc">Sort: Candidate Name (Z-A)</option>
+              <option value="reg_asc">Sort: Register ID (Asc)</option>
+              <option value="warnings_desc">Sort: Most Warnings</option>
+            </select>
+          </div>
         </div>
 
         <div class="table-wrap">
@@ -341,10 +359,10 @@
          =================================================================== -->
     <section id="tab-questions" class="admin-tab-panel hidden">
       <div class="card">
-        <!-- Slot Switcher for Question Bank -->
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; padding-bottom:14px; border-bottom:1.5px solid rgba(91,33,182,0.15);">
+        <!-- Slot Switcher & Optional Scheduled Clock Unlock for Question Bank -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; padding-bottom:14px; border-bottom:1.5px solid rgba(41,50,98,0.18);">
           <div style="display:flex; gap:10px; align-items:center;">
-            <span style="font-weight:800; color:#3b0764; font-size:15px;">Managing Bank:</span>
+            <span style="font-weight:800; color:var(--navy-deep); font-size:15px;">Managing Bank:</span>
             <button type="button" id="btn-tab-slot-1" class="btn btn-gold btn-sm" style="font-size:13px; font-weight:700;">
               Slot 1 Questions (<span id="slot1-count">0</span>)
             </button>
@@ -354,6 +372,29 @@
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
             <span id="active-slot-badge" class="hero-chip" style="margin:0; font-size:12px;">Slot 1 Active for Students</span>
+          </div>
+        </div>
+
+        <!-- Optional Clock Unlock Scheduler Card -->
+        <div class="glass3d card" style="padding:14px 16px; margin-bottom:18px; border:1px solid rgba(41,50,98,0.22);">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+              <strong style="color:var(--navy-deep); font-size:14px;">⏰ Optional Scheduled Clock Unlock</strong>
+              <p style="margin:2px 0 0; font-size:12px; color:var(--text-muted);">Set a date &amp; time for automatic unlock. If empty, access is controlled manually via the ON/OFF buttons.</p>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <label style="font-size:12px; font-weight:700; color:var(--navy-primary);" for="cfg-slot1-unlock">Slot 1:</label>
+                <input type="datetime-local" id="cfg-slot1-unlock" style="padding:5px 8px; font-size:12px; border-radius:8px; border:1px solid var(--navy-primary);" />
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <label style="font-size:12px; font-weight:700; color:var(--navy-primary);" for="cfg-slot2-unlock">Slot 2:</label>
+                <input type="datetime-local" id="cfg-slot2-unlock" style="padding:5px 8px; font-size:12px; border-radius:8px; border:1px solid var(--navy-primary);" />
+              </div>
+              <button type="button" id="btn-save-slot-unlocks" class="btn btn-primary btn-sm" style="padding:5px 12px; font-size:12px;">
+                Save Schedule
+              </button>
+            </div>
           </div>
         </div>
 

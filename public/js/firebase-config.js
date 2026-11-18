@@ -44,18 +44,14 @@ export function isFirebaseConfigured(cfg = getEffectiveFirebaseConfig()) {
 
 /**
  * Admin Credentials Policy
- * Strictly locks to authorized trp.srmtrichy.edu.in admin mail.
+ * When using Firebase Auth, any user registered in Firebase Console Auth can administer.
  */
 export const ADMIN_ACCESS = Object.freeze({
-  allowedEmails: [
-    '814725105014@trp.srmtrichy.edu.in'
-  ],
-  allowedEmail: '814725105014@trp.srmtrichy.edu.in',
-  allowedPasswordHashes: [
-    '02ec78533da916a8a24392b408d3a32aa4a5d766bf5632b40f08a5d230c4f920', // Hari@EEE29
-    'e9447e45300f2ae9b276d4df997871b699a7065961d6ecbcfd5069b2d8697193'  // Admin@UTS2026
-  ],
-  passwordSha256: '02ec78533da916a8a24392b408d3a32aa4a5d766bf5632b40f08a5d230c4f920'
+  allowAnyFirebaseUser: true,
+  allowedEmails: [],
+  allowedEmail: '',
+  allowedPasswordHashes: [],
+  passwordSha256: ''
 });
 
 /**

@@ -2,11 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Strictly locks administrative privileges to authorized trp.srmtrichy.edu.in email
+    // Any authenticated Firebase user created in your Firebase Console is an authorized administrator
     function isAuthorizedAdmin() {
-      return request.auth != null
-        && request.auth.token.email != null
-        && request.auth.token.email.lower() == '814725105014@trp.srmtrichy.edu.in';
+      return request.auth != null && request.auth.token.email != null;
     }
 
     // Portal configuration & question bank: readable by candidates, editable ONLY by Admin

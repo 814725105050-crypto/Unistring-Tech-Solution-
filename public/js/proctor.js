@@ -128,9 +128,12 @@ export class ExamProctor {
       this._checkReturnDeadlineImmediate();
     });
 
-    bind(window, 'pagehide', () => {
+    // Confirmation dialog before refreshing or navigating away
+    bind(window, 'beforeunload', (e) => {
       if (!this.active || this.submitted) return;
-      this._handleViolation('Left quiz page / browser navigation');
+      e.preventDefault();
+      e.returnValue = 'You have an active assessment in progress. Leaving or reloading may consume a security warning.';
+      return e.returnValue;
     });
 
     // 3. Fullscreen exit guard (Android gesture handle / Circle to Search / Esc)
@@ -206,7 +209,9 @@ export class ExamProctor {
         const blocked =
           e.key === 'F12' ||
           e.key === 'PrintScreen' ||
-          (e.ctrlKey && e.shiftKey && ['i', 'j', 'c', 's'].includes(key)) ||
+          e.key === 'F5' ||
+          ((e.ctrlKey || e.metaKey) && key === 'r') ||
+          (e.ctrlKey && e.shiftKey && ['i', 'j', 'c', 's', 'r'].includes(key)) ||
           (e.metaKey && e.shiftKey && ['3', '4', '5', 's', 'i'].includes(key)) ||
           ((e.ctrlKey || e.metaKey) && ['u', 'p', 's', 'c', 'x', 'a', 'f', 'g'].includes(key));
 

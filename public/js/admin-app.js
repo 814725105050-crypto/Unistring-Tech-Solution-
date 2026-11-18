@@ -251,11 +251,27 @@ function bindDashboardEvents() {
     });
   }
 
-  // CSV Export
+  // CSV Export — All
   document.getElementById('btn-export-full-csv').addEventListener('click', () => {
     if (!allSubmissions.length) return showToast('No submissions to export yet.', true);
     const csv = buildDetailedResultsCsv(allSubmissions);
-    downloadTextFile(csv, `UTS_Placement_Results_${todayStamp()}.csv`, 'text/csv;charset=utf-8');
+    downloadTextFile(csv, `UTS_Placement_Results_All_${todayStamp()}.csv`, 'text/csv;charset=utf-8');
+  });
+
+  // CSV Export — Slot 1 Only
+  document.getElementById('btn-export-slot1-csv').addEventListener('click', () => {
+    const slot1Subs = allSubmissions.filter((s) => Number(s.slot || 1) === 1);
+    if (!slot1Subs.length) return showToast('No Slot 1 submissions to export yet.', true);
+    const csv = buildDetailedResultsCsv(slot1Subs);
+    downloadTextFile(csv, `UTS_Placement_Results_Slot1_${todayStamp()}.csv`, 'text/csv;charset=utf-8');
+  });
+
+  // CSV Export — Slot 2 Only
+  document.getElementById('btn-export-slot2-csv').addEventListener('click', () => {
+    const slot2Subs = allSubmissions.filter((s) => Number(s.slot || 1) === 2);
+    if (!slot2Subs.length) return showToast('No Slot 2 submissions to export yet.', true);
+    const csv = buildDetailedResultsCsv(slot2Subs);
+    downloadTextFile(csv, `UTS_Placement_Results_Slot2_${todayStamp()}.csv`, 'text/csv;charset=utf-8');
   });
 
   // Settings Form (Tab 2)
@@ -945,6 +961,7 @@ function buildDetailedResultsCsv(submissions) {
     'Email',
     'Mobile',
     'Batch',
+    'Slot',
     'Score',
     'Total Questions',
     'Percentage',
@@ -961,6 +978,7 @@ function buildDetailedResultsCsv(submissions) {
     s.email || '',
     s.phone || '',
     s.year || '',
+    `Slot ${s.slot || 1}`,
     s.score ?? 0,
     s.totalQuestions ?? (questions.length || 30),
     `${s.percentage ?? 0}%`,

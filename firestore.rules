@@ -2,50 +2,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Strictly locks all administrative privileges to the single authorized SRM TRP coordinator email
+    // Strictly locks administrative privileges to authorized Unistring Tech Solution coordinators
     function isAuthorizedAdmin() {
       return request.auth != null
         && request.auth.token.email != null
-        && request.auth.token.email.lower() == '814725105014@trp.srmtrichy.edu.in';
+        && (
+          request.auth.token.email.lower() == 'admin@unistring.com'
+          || request.auth.token.email.lower() == '814725105014@trp.srmtrichy.edu.in'
+          || request.auth.token.email.lower().matches('.*@unistring[.]com$')
+        );
     }
 
-    // Quiz settings & question bank: readable by test-takers, editable ONLY by the Admin
+    // Portal configuration & question bank: readable by candidates, editable ONLY by Admin
     match /portal_config/{docId} {
       allow read: if true;
       allow write: if isAuthorizedAdmin();
     }
 
-    // Public Certificate Verification Registry (/verify?certificateId=...):
-    // - Anyone scanning a certificate QR code can verify a specific certificate by ID (`get`)
-    //   directly on Firebase with zero Google login and zero Apps Script redirect!
-    // - Full collection listing (`list`) and deletion (`delete`) are locked to Admin only.
-    // - Issued certificates can be registered by CAMS Apps Script / Quiz Portal with public-safe fields only.
-    match /certificates/{certKey} {
-      allow get: if true;
-      allow list, delete: if isAuthorizedAdmin();
-
-      // Never allow anonymous registration: it would enable forged certificates.
-      allow create, update: if isAuthorizedAdmin();
-    }
-
-    // Live active exam proctoring telemetry
+    // Live active assessment proctoring telemetry
     match /active_sessions/{sessionId} {
       allow create, update, delete: if true;
       allow read: if isAuthorizedAdmin();
     }
 
-    // Register-number uniqueness index (prevents same Reg No submitting under a 2nd email)
+    // Candidate ID / Register-number uniqueness index
     match /reg_locks/{regNo} {
       allow get: if true;
       allow create: if !exists(/databases/$(database)/documents/reg_locks/$(regNo));
       allow update, delete, list: if isAuthorizedAdmin();
     }
 
-    // Student quiz submissions:
-    // - Students can create their submission ONCE (cannot overwrite score/answers)
-    // - Students can read their own single submission doc by email ID (no full collection listing)
-    // - Certificate status fields can be updated once CAMS responds, without altering score
-    // - Full list, full edit, and retake deletion are restricted exclusively to Admin
+    // Candidate assessment submissions
     match /submissions/{submissionId} {
       allow get: if true;
       allow list, delete: if isAuthorizedAdmin();
@@ -55,13 +42,7 @@ service cloud.firestore {
         && request.resource.data.fullName is string
         && request.resource.data.score is number;
 
-      allow update: if isAuthorizedAdmin() || (
-        request.resource.data.score == resource.data.score
-        && request.resource.data.percentage == resource.data.percentage
-        && request.resource.data.warningsUsed == resource.data.warningsUsed
-        && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['certificateStatus', 'certificateId', 'certificatePdfUrl', 'certificateSentAt', 'certificateError'])
-      );
+      allow update: if isAuthorizedAdmin();
     }
   }
 }

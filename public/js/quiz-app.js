@@ -193,15 +193,15 @@ function bindUIEvents() {
     const year = document.getElementById('reg-year').value.trim();
     const enteredPin = document.getElementById('reg-passcode').value.trim();
 
-    if (fullName.length < 2) return showRegisterError('Please enter your full name (for certificate printing).');
+    if (fullName.length < 2) return showRegisterError('Please enter your full name.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showRegisterError('Please enter a valid email address.');
-    if (registerNumber.length < 4) return showRegisterError('Please enter your valid Register Number.');
-    if (!/^\+?\d{10,14}$/.test(phone)) return showRegisterError('Please enter a valid 10-digit mobile number.');
-    if (!year) return showRegisterError('Please select your Year of Study.');
+    if (registerNumber.length < 2) return showRegisterError('Please enter your Candidate / Register ID.');
+    if (!/^\+?\d{7,15}$/.test(phone)) return showRegisterError('Please enter a valid mobile number (at least 7 to 10 digits).');
+    if (!year) return showRegisterError('Please select your Qualification / Year.');
 
     const requiredPin = String(settings.examAccessCode || '').trim();
     if (requiredPin && enteredPin !== requiredPin) {
-      return showRegisterError('Incorrect Workshop Hall PIN. Please check with the coordinator.');
+      return showRegisterError('Incorrect Access PIN. Please check with the coordinator.');
     }
 
     const btn = document.getElementById('btn-register-continue');
@@ -210,10 +210,14 @@ function bindUIEvents() {
 
     try {
       if (!settings.allowDuplicateEmail) {
-        const existing = await checkExistingSubmission(email, registerNumber);
-        if (existing) {
-          renderResultScreen(existing, true);
-          return;
+        try {
+          const existing = await checkExistingSubmission(email, registerNumber);
+          if (existing) {
+            renderResultScreen(existing, true);
+            return;
+          }
+        } catch (checkErr) {
+          console.warn('Submission check fallback:', checkErr);
         }
       }
 

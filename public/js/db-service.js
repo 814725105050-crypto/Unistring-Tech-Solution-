@@ -1,9 +1,6 @@
 /**
- * Unified Data & Authentication Service — Connected to Firebase (`embedx-assessment`)
- *
- * Uses Firebase App + Analytics + Auth + Cloud Firestore, with resilient fallback
- * to LocalStorage + BroadcastChannel if Cloud Firestore or Email/Password Auth
- * has not yet been toggled ON in the Firebase Console!
+ * Unified Data & Authentication Service — Connected to Firebase (`unistring-tech-solution`)
+ * Unistring Tech Solution Placement Drive Assessment
  */
 
 import {
@@ -14,21 +11,20 @@ import {
   isFirebaseConfigured
 } from './firebase-config.js';
 import { DEFAULT_QUESTIONS } from './questions-data.js';
-import { buildCanonicalFirebaseVerifyLink } from './cams-client.js';
 
 const STORAGE_KEYS = {
-  SETTINGS: 'embedx_portal_settings_v1',
-  QUESTIONS: 'embedx_questions_bank_v1',
-  SUBMISSIONS: 'embedx_submissions_v1',
-  CERTIFICATES: 'embedx_certificates_v1',
-  ACTIVE_SESSIONS: 'embedx_live_sessions_v1',
-  ADMIN_SESSION: 'embedx_admin_auth_session_v1'
+  SETTINGS: 'uts_portal_settings_v1',
+  QUESTIONS: 'uts_questions_bank_v1',
+  SUBMISSIONS: 'uts_submissions_v1',
+  CERTIFICATES: 'uts_certificates_v1',
+  ACTIVE_SESSIONS: 'uts_live_sessions_v1',
+  ADMIN_SESSION: 'uts_admin_auth_session_v1'
 };
 
 let firebaseCtx = null;
 let initPromise = null;
 let firestoreCloudHealthy = true;
-const broadcast = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('embedx_live_sync') : null;
+const broadcast = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('uts_live_sync') : null;
 
 function notifyLocalChange(topic) {
   if (broadcast) {
@@ -728,68 +724,66 @@ export async function subscribeToAdminData(onData) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Exclusive Admin Authentication (814725105014@trp.srmtrichy.edu.in ONLY)    */
+/* Admin Authentication                                                       */
 /* -------------------------------------------------------------------------- */
 
 export async function loginAdmin(emailInput, passwordInput) {
   const normalizedEmail = String(emailInput || '').trim().toLowerCase();
-  const expectedEmail = ADMIN_ACCESS.allowedEmail.toLowerCase();
-
-  if (normalizedEmail !== expectedEmail) {
-    throw new Error('Access Denied: This login is restricted exclusively to the authorized EMBEDX Administrator.');
-  }
+  const allowedList = (ADMIN_ACCESS.allowedEmails || [ADMIN_ACCESS.allowedEmail]).map((e) =>
+    e.toLowerCase()
+  );
 
   const passHash = await sha256Hex(String(passwordInput || ''));
+  const validHash =
+    (ADMIN_ACCESS.allowedPasswordHashes &&
+      ADMIN_ACCESS.allowedPasswordHashes.includes(passHash)) ||
+    passHash === ADMIN_ACCESS.passwordSha256;
+
   const ctx = await initBackend();
 
   if (ctx.mode === 'firebase') {
     const { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } = ctx.authMod;
     try {
-      const cred = await signInWithEmailAndPassword(ctx.auth, expectedEmail, passwordInput);
-      if (String(cred.user.email || '').toLowerCase() !== expectedEmail) {
-        await signOut(ctx.auth);
-        throw new Error('Unauthorized administrator email.');
-      }
+      const cred = await signInWithEmailAndPassword(ctx.auth, normalizedEmail, passwordInput);
       sessionStorage.setItem(
         STORAGE_KEYS.ADMIN_SESSION,
-        JSON.stringify({ email: expectedEmail, loggedInAt: Date.now(), mode: 'firebase' })
+        JSON.stringify({ email: normalizedEmail, loggedInAt: Date.now(), mode: 'firebase' })
       );
-      return { email: expectedEmail, mode: 'firebase' };
+      return { email: normalizedEmail, mode: 'firebase' };
     } catch (err) {
       const code = String(err?.code || '');
 
-      // Auto-bootstrap admin account on first login once Email/Password Auth is enabled
+      // Auto-bootstrap admin account on first login if Email/Password Auth is enabled
       if (
         (code === 'auth/user-not-found' || code === 'auth/invalid-credential') &&
-        passHash === ADMIN_ACCESS.passwordSha256
+        allowedList.includes(normalizedEmail) &&
+        validHash
       ) {
         try {
-          await createUserWithEmailAndPassword(ctx.auth, expectedEmail, passwordInput);
+          await createUserWithEmailAndPassword(ctx.auth, normalizedEmail, passwordInput);
           sessionStorage.setItem(
             STORAGE_KEYS.ADMIN_SESSION,
-            JSON.stringify({ email: expectedEmail, loggedInAt: Date.now(), mode: 'firebase' })
+            JSON.stringify({ email: normalizedEmail, loggedInAt: Date.now(), mode: 'firebase' })
           );
-          return { email: expectedEmail, mode: 'firebase', bootstrapped: true };
+          return { email: normalizedEmail, mode: 'firebase', bootstrapped: true };
         } catch (createErr) {
           const cCode = String(createErr?.code || '');
           if (cCode === 'auth/email-already-in-use') {
             throw new Error('Invalid administrator password.');
           }
-          // If Email/Password sign-in provider hasn't been enabled yet in Firebase Console,
-          // still verify SHA-256 and let the verified Admin into the dashboard!
           if (
             (cCode === 'auth/operation-not-allowed' || cCode === 'auth/configuration-not-found') &&
-            passHash === ADMIN_ACCESS.passwordSha256
+            validHash
           ) {
             sessionStorage.setItem(
               STORAGE_KEYS.ADMIN_SESSION,
               JSON.stringify({
-                email: expectedEmail,
+                email: normalizedEmail,
                 loggedInAt: Date.now(),
                 mode: 'firebase_pending_console_toggle'
               })
             );
-            return { email: expectedEmail, mode: 'firebase_pending_console_toggle' };
+            return { email: normalizedEmail, mode: 'firebase_pending_console_toggle' };
           }
           throw new Error(createErr?.message || 'Firebase Auth error.');
         }
@@ -798,39 +792,51 @@ export async function loginAdmin(emailInput, passwordInput) {
       // Handle PASSWORD_LOGIN_DISABLED directly on signInWithEmailAndPassword
       if (
         (code === 'auth/operation-not-allowed' || code === 'auth/configuration-not-found') &&
-        passHash === ADMIN_ACCESS.passwordSha256
+        allowedList.includes(normalizedEmail) &&
+        validHash
       ) {
         sessionStorage.setItem(
           STORAGE_KEYS.ADMIN_SESSION,
           JSON.stringify({
-            email: expectedEmail,
+            email: normalizedEmail,
             loggedInAt: Date.now(),
             mode: 'firebase_pending_console_toggle'
           })
         );
-        return { email: expectedEmail, mode: 'firebase_pending_console_toggle' };
+        return { email: normalizedEmail, mode: 'firebase_pending_console_toggle' };
       }
 
+      if (!allowedList.includes(normalizedEmail)) {
+        throw new Error('Access Denied: Email is not on the authorized Administrator list.');
+      }
       throw new Error('Invalid administrator credentials.');
     }
   }
 
-  if (passHash !== ADMIN_ACCESS.passwordSha256) {
+  // Local / offline fallback
+  if (!allowedList.includes(normalizedEmail)) {
+    throw new Error('Access Denied: Email is not on the authorized Administrator list.');
+  }
+
+  if (!validHash) {
     throw new Error('Invalid administrator password.');
   }
 
   sessionStorage.setItem(
     STORAGE_KEYS.ADMIN_SESSION,
-    JSON.stringify({ email: expectedEmail, loggedInAt: Date.now(), mode: 'local' })
+    JSON.stringify({ email: normalizedEmail, loggedInAt: Date.now(), mode: 'local' })
   );
-  return { email: expectedEmail, mode: 'local' };
+  return { email: normalizedEmail, mode: 'local' };
 }
 
 export async function getActiveAdminSession() {
+  const allowedList = (ADMIN_ACCESS.allowedEmails || [ADMIN_ACCESS.allowedEmail]).map((e) =>
+    e.toLowerCase()
+  );
   const ctx = await initBackend();
   if (ctx.mode === 'firebase' && ctx.auth.currentUser) {
     const email = String(ctx.auth.currentUser.email || '').toLowerCase();
-    if (email === ADMIN_ACCESS.allowedEmail.toLowerCase()) {
+    if (allowedList.includes(email)) {
       return { email, mode: 'firebase' };
     }
   }
@@ -838,7 +844,7 @@ export async function getActiveAdminSession() {
     const raw = sessionStorage.getItem(STORAGE_KEYS.ADMIN_SESSION);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (String(parsed.email || '').toLowerCase() === ADMIN_ACCESS.allowedEmail.toLowerCase()) {
+    if (allowedList.includes(String(parsed.email || '').toLowerCase())) {
       return parsed;
     }
   } catch (_) {}

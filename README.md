@@ -1,64 +1,108 @@
-# EMBEDX Proctored Workshop Quiz & CAMS Certificate Portal
+# Unistring Tech Solution · Placement Drive Assessment Portal
 
-**EMBEDX | Embedded Systems & Automation Club**  
-*Department of Electrical and Electronics Engineering · SRM TRP Engineering College*
-
-A mobile-first, strictly proctored assessment web application containing all **30 EMBEDX Workshop Quiz questions**, integrated directly with the **CAMS (Certificate Automation Management System)** Google Workspace certificate generator and built for **Firebase Hosting + Cloud Firestore + Firebase Auth**.
+A modern, mobile-first, proctored online assessment web application built for **Unistring Tech Solution** placement drives. Powered by **Firebase Hosting + Cloud Firestore + Firebase Authentication**.
 
 ---
 
 ## Key Features
 
-### 1. Mobile-First Exam Experience
-- Touch-first responsive UI optimized for Android & iOS mobile screens (`360px+` to desktop).
-- Required registration mapped directly to your CAMS Google Sheet columns (`Participant Full Name`, `Email Address`, `Register Number`, `Department`, `Year`, `College`, `Mobile Number`).
-- Per-student deterministic seeded shuffling of both **question order** and **MCQ option order** (prevents adjacent-seat copying and "all Option A" guessing, while preserving order if a student's page reloads).
+### 1. Placement Assessment Experience
+- **Mobile-First Responsive Design**: Optimized for phones, tablets, and desktop browsers.
+- **Candidate Registration**: Captures full name, email, candidate ID, mobile number, and qualification/batch.
+- **Deterministic Seeded Shuffling**: Shuffles question sequence and MCQ options per candidate while preserving order across page refreshes.
+- **Real-Time Timer & Palette**: Sticky progress bar, remaining time countdown, and question navigator.
 
-### 2. Multi-Layer Mobile Anti-Cheat & Anti Circle-to-Search
-- **HiDPI Canvas Question Shield + Student Watermark**: Questions are rendered onto a non-selectable `<canvas>` with a diagonal student Register Number watermark — blocking DOM text scraping, copy extensions, and text-highlight search overlays.
-- **Instant Blackout Security Curtain**: The millisecond `window.blur`, `visibilitychange`, `pagehide`, split-screen resize, or fullscreen exit occurs (such as invoking Android Circle to Search or App Switcher), the quiz DOM is hidden and covered by a solid lockout screen.
-- **2 Warnings + 20-Second Wall-Clock Return Countdown**:
-  - **Violation 1**: Warning `1/2` with a tamper-proof `Date.now()` **20-second** countdown to return and tap *Resume in Fullscreen* — otherwise **auto-submits immediately**.
-  - **Violation 2**: Final Warning `2/2` with a **20-second** countdown — otherwise **auto-submits immediately**.
-  - **Violation 3**: **0s grace — immediate auto-submit**.
-- Blocks `contextmenu`, long-press callouts, `copy`/`cut`/`paste`, 3-finger screenshot gestures, `PrintScreen`, `Ctrl+P` printing, and DevTools shortcuts.
+### 2. Multi-Layer Anti-Cheat Proctoring
+- **HiDPI Protected Canvas**: Questions are rendered onto a non-selectable HTML5 `<canvas>` with a diagonal watermark stamp containing the candidate's ID to prevent DOM inspection, screenshot scraping, and Circle-to-Search.
+- **Instant Security Lockout Curtain**: The millisecond focus is lost, split-screen is triggered, or tabs are switched, an opaque lockout screen immediately covers the assessment.
+- **2-Warning + 20-Second Policy**:
+  - Violation 1: Warning 1 of 2 + 20-second return countdown.
+  - Violation 2: Final Warning 2 of 2 + 20-second return countdown.
+  - Violation 3 (or timeout): Test auto-submits immediately.
+- **Blocked Actions**: Context menu, copy/paste, text selection, multi-finger gestures, DevTools shortcuts, and PrintScreen.
 
-### 3. Dedicated Single-Admin Console (`/admin`)
-- Separate login restricted exclusively to `814725105014@trp.srmtrichy.edu.in` (enforced in client auth gate, Firebase Auth bootstrap, and `firestore.rules`).
-- Live active test-taker monitor, submission & violation timeline inspector, 1-click retake reset, Question Bank editor, CSV exports (including a **CAMS-Exact Google Sheet CSV**), and CAMS Certificate trigger controls.
-
-### 4. Automated CAMS Certificate Issuance
-- Connects directly to your existing CAMS Google Apps Script project (`1jiVDFpIxGwfSlHBt3vaHl-5GFd8DPGapSS4tsR-FhJQ`) via `cams-integration/QuizWebhook.gs` (`doPost`).
-- Automatically allocates the Certificate ID (`EEE/EMBX/...`), generates the Google Slides certificate with Coordinator/HOD/Principal signatures and QR verification code, exports the PDF to Google Drive, and emails it via Gmail upon quiz completion.
+### 3. Administrator Console (`/admin`)
+- **JSON Question Bank Upload**: Easily upload assessment questions directly via a `.json` file.
+- **JSON Template & Export**: One-click download of the sample JSON structure and export of current questions.
+- **Dynamic Portal Logo**: Change company logo directly from the admin panel (via file upload or URL) — updates immediately on both candidate and admin interfaces.
+- **Live Monitor**: See active candidates taking the test in real time, with their progress and security warning status.
+- **Results & Timeline**: View scores, percentage, time taken, proctoring violation logs, and export all responses to CSV.
+- **Retake Reset**: 1-click clearance to allow a candidate to re-attempt the assessment if needed.
 
 ---
 
-## Step-by-Step Setup Guide
+## JSON Question Format
 
-### Step A — Enable CAMS Automatic Webhook (2 Minutes)
-1. Open your CAMS Google Form → **⋮** → **Script editor**.
-2. Click **+** next to *Files* → **Script** → name it `QuizWebhook`.
-3. Paste the contents of [`cams-integration/QuizWebhook.gs`](./cams-integration/QuizWebhook.gs) (also available with 1-click Copy inside `/admin` → **Tab 4**).
-4. Click **Deploy** → **Manage deployments** → click the **Edit (pencil)** icon on your active Web App deployment:
-   - **Version**: Select **New version**
-   - **Execute as**: `Me`
-   - **Who has access**: `Anyone`
-   - Click **Deploy**.
-5. Open `/admin` → **Tab 4** → click **⚡ Test CAMS Webhook Connection** to verify!
+You can upload questions to the assessment bank using a `.json` file. Supported format:
 
-### Step B — Create & Connect Firebase Project (5 Minutes)
-1. Go to [https://console.firebase.google.com](https://console.firebase.google.com) → **Create a project** (e.g. `embedx-quiz-srmtrp`).
-2. **Enable Authentication**:
-   - Build → **Authentication** → **Get started** → Sign-in method → Enable **Email/Password** → Save.
-   - *(On your very first sign-in at `/admin`, your authorized admin account `814725105014@trp.srmtrichy.edu.in` is automatically provisioned in Firebase Auth!)*
-3. **Enable Cloud Firestore**:
-   - Build → **Firestore Database** → **Create database** → Choose location (`asia-south1` Mumbai recommended for India) → Start in **Production mode**.
-4. **Get Your Web App API Keys**:
-   - Project Overview → **Project settings** (gear icon) → Scroll down to *Your apps* → Click **`</>` (Web)** → Register app (`EMBEDX Quiz`) → Copy the `firebaseConfig` object.
-5. Paste those values into `public/js/firebase-config.js` (and update `.firebaserc` with your `projectId`).
-6. Deploy Firestore rules & Hosting:
-   ```bash
-   npx firebase-tools login
-   npx firebase-tools use YOUR_FIREBASE_PROJECT_ID
-   npx firebase-tools deploy
-   ```
+```json
+[
+  {
+    "id": 1,
+    "category": "Technical",
+    "type": "mcq",
+    "question": "What is the primary purpose of an index in a relational database?",
+    "options": [
+      "Speed up data retrieval operations",
+      "Ensure permanent physical backup",
+      "Encrypt sensitive columns",
+      "Compress binary files"
+    ],
+    "correctIndex": 0,
+    "explanation": "Indexes allow the database engine to find rows much faster without scanning entire tables."
+  },
+  {
+    "id": 2,
+    "category": "Logical Reasoning",
+    "type": "tf",
+    "question": "In Git, committing changes creates a repository snapshot.",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctIndex": 0,
+    "explanation": "Git stores changes as miniature filesystem snapshots."
+  }
+]
+```
+
+Alternatively, you can wrap them in a `"questions"` property:
+```json
+{
+  "questions": [ ... ]
+}
+```
+
+---
+
+## Firebase Configuration
+
+This portal is configured for the Firebase project `unistring-tech-solution`:
+
+```javascript
+const firebaseConfig = {
+  apiKey: "AIzaSyDA7t71gpJu25Bqu5SsPHFoRPRoT2P6Jxw",
+  authDomain: "unistring-tech-solution.firebaseapp.com",
+  projectId: "unistring-tech-solution",
+  storageBucket: "unistring-tech-solution.firebasestorage.app",
+  messagingSenderId: "12508598977",
+  appId: "1:12508598977:web:ca6748e7f4b6cbc9233a40",
+  measurementId: "G-4SDKR132EE"
+};
+```
+
+### Local Preview
+Run the local preview server:
+```bash
+npm start
+```
+Open [http://localhost:3000](http://localhost:3000) for the candidate portal, and [http://localhost:3000/admin](http://localhost:3000/admin) for the admin console.
+
+### Deploying to Firebase
+```bash
+# Login to Firebase CLI
+npx firebase-tools login
+
+# Deploy Firestore rules & Hosting
+npx firebase-tools deploy --project unistring-tech-solution
+```

@@ -1,18 +1,6 @@
 /**
- * EMBEDX Strict Mobile-First Proctoring & Anti-Cheat Engine
- *
- * Security Rules Implemented:
- * 1. Strictly bans mobile tab switching, app switching, split-screen, and focus loss.
- * 2. Defends against Android Circle to Search / Google Lens / Screen Scraping:
- *    - Instant Blackout Curtain hides quiz DOM the millisecond window blurs or exits fullscreen
- *    - Blocks long-press callouts, context menu, text selection, copy/cut/paste, drag, 3-finger screenshot
- *    - Blocks DevTools & keyboard shortcuts (F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+P, PrintScreen)
- * 3. Exact 2-Warning + 20-Second Wall-Clock Return Policy:
- *    - Violation #1 -> Warning 1/2 + 20-second wall-clock countdown (Date.now() tamper-proof).
- *      If not back & resumed within 20s -> AUTO SUBMIT.
- *    - Violation #2 -> Warning 2/2 (Final Warning) + 20-second wall-clock countdown.
- *      If not back & resumed within 20s -> AUTO SUBMIT.
- *    - Violation #3 -> Immediate AUTO SUBMIT (0s grace).
+ * Unistring Tech Solution — Mobile-First Proctoring & Anti-Cheat Engine
+ * Placement Drive Assessment
  */
 
 export class ExamProctor {

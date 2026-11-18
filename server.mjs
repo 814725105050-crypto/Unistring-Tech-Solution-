@@ -1,7 +1,7 @@
 /**
- * Preview Static HTTP Server for EMBEDX Quiz Portal
+ * Preview Static HTTP Server for Unistring Tech Solution Assessment Portal
  * Mirrors Firebase Hosting (`public/`, `cleanUrls: true`) and binds to 0.0.0.0
- * so the Arena Live Preview works seamlessly in any browser/mobile viewport.
+ * so the Live Preview works seamlessly in any browser/mobile viewport.
  */
 
 import http from 'node:http';
@@ -43,7 +43,7 @@ const server = http.createServer((req, res) => {
     const safeRelPath = path.normalize(pathname).replace(/^(\.\.(\/|\\|$))+/, '');
     let filePath = path.join(PUBLIC_DIR, safeRelPath);
 
-    // Support Firebase Hosting `cleanUrls: true` (e.g., /admin -> /admin.html, /verify -> /verify.html)
+    // Support Firebase Hosting `cleanUrls: true` (e.g., /admin -> /admin.html)
     if (!fs.existsSync(filePath) && !path.extname(filePath)) {
       const htmlCandidate = `${filePath}.html`;
       if (fs.existsSync(htmlCandidate)) {
@@ -53,7 +53,7 @@ const server = http.createServer((req, res) => {
 
     if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
       res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end('<!doctype html><title>404</title><body style="font-family:sans-serif;background:#070c18;color:#fff;padding:32px;"><h2>404 — Page Not Found</h2><p><a href="/" style="color:#38bdf8;">Return to Quiz Portal</a></p></body>');
+      res.end('<!doctype html><title>404</title><body style="font-family:sans-serif;background:#070c18;color:#fff;padding:32px;"><h2>404 — Page Not Found</h2><p><a href="/" style="color:#38bdf8;">Return to Assessment Portal</a></p></body>');
       return;
     }
 
@@ -73,5 +73,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`EMBEDX Quiz Portal live at http://${HOST}:${PORT}`);
+  console.log(`Unistring Tech Solution Assessment Portal live at http://${HOST}:${PORT}`);
 });

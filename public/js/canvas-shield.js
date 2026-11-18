@@ -1,6 +1,6 @@
 /**
  * Canvas Shield — Anti Circle-to-Search & Anti-Scraping Question Renderer
- * Signature Theme: Radiant Metallic Gold · Crisp Pure White · Royal Purple
+ * Unistring Tech Solution Placement Drive Assessment
  */
 
 export function renderProtectedQuestionCanvas(canvas, options) {
@@ -106,7 +106,7 @@ export function renderProtectedQuestionCanvas(canvas, options) {
     ctx.font = `700 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
     ctx.fillStyle = 'rgba(91, 33, 182, 0.06)';
     ctx.textAlign = 'center';
-    const stamp = `${watermarkText}  •  EEE EMBEDX`;
+    const stamp = `${watermarkText}  •  UTS`;
     for (let y = -totalHeight; y <= totalHeight; y += 38) {
       for (let x = -parentWidth; x <= parentWidth; x += 220) {
         ctx.fillText(stamp, x, y);

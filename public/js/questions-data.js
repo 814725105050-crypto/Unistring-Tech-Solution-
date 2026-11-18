@@ -1,18 +1,16 @@
 /**
- * EMBEDX Workshop Quiz — Official 30-Question Bank
- * Source: EMBEDX_30_Question_Workshop_Quiz_with_Answers.pdf
- * EMBEDX | Embedded Systems & Automation Club — SRM TRP Engineering College
+ * Unistring Tech Solution — Placement Drive Question Bank
  */
 
 export const DEFAULT_QUIZ_META = {
-  quizId: 'embedx-workshop-2026',
-  clubName: 'EMBEDX | Embedded Systems & Automation Club',
-  departmentName: 'Department of Electrical and Electronics Engineering',
-  collegeName: 'SRM TRP Engineering College',
-  quizTitle: 'EMBEDX Workshop Assessment Quiz',
-  workshopTitle: 'Basics of Embedded Systems and Embedded Programming Language',
+  quizId: 'uts-placement-2026',
+  clubName: 'Unistring Tech Solution',
+  departmentName: 'Placement Drive',
+  collegeName: 'Unistring Tech Solution',
+  quizTitle: 'Placement Drive Assessment',
+  workshopTitle: 'Unistring Placement Assessment',
   topicsSummary:
-    'Embedded systems, Arduino, Embedded C, ESP32, basic sensors, actuators, and hardware–software integration.',
+    'Core technical, domain-specific, and problem-solving assessment.',
   totalQuestions: 30,
   defaultDurationMinutes: 30,
   maxWarnings: 2,

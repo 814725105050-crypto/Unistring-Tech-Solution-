@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy_live:
-    if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_EMBEDX_ASSESSMENT != '' }}
+    if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_UNISTRING_TECH_SOLUTION != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -17,6 +17,6 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_EMBEDX_ASSESSMENT }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_UNISTRING_TECH_SOLUTION }}
           channelId: live
-          projectId: embedx-assessment
+          projectId: unistring-tech-solution

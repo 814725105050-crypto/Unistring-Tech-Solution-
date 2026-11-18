@@ -1,8 +1,6 @@
 /**
- * EMBEDX Student Mobile-First Quiz Application (EEE Department · SRM TRP Engineering College)
- * Theme: Royal Purple, Metallic Gold & Crisp White
- * Orchestrates Registration -> Security Briefing -> Seeded Shuffling ->
- * Canvas Question Rendering -> 2-Warning/20s Proctor -> CAMS Certificate Issuance.
+ * Unistring Tech Solution Student Mobile-First Assessment Application
+ * Placement Drive Assessment
  */
 
 import {
@@ -11,17 +9,14 @@ import {
   loadQuestions,
   recordQuizSubmission,
   removeActiveSession,
-  updateSubmissionCertificateStatus,
-  upsertActiveSession,
-  upsertVerifiedCertificate
+  upsertActiveSession
 } from './db-service.js';
 import { renderProtectedQuestionCanvas } from './canvas-shield.js';
 import { ExamProctor } from './proctor.js';
-import { buildVerificationLink, issueCamsCertificate } from './cams-client.js';
 
-const ACTIVE_ATTEMPT_KEY = 'embedx_student_active_attempt_v1';
-const FIXED_DEPARTMENT = 'EEE';
-const FIXED_COLLEGE = 'SRM TRP Engineering College';
+const ACTIVE_ATTEMPT_KEY = 'uts_student_active_attempt_v1';
+const FIXED_DEPARTMENT = 'Placement Drive';
+const FIXED_COLLEGE = 'Unistring Tech Solution';
 
 let settings = null;
 let rawQuestions = [];
@@ -125,10 +120,16 @@ async function initPortal() {
 }
 
 function applySettingsToLandingUI() {
+  const activeLogo = settings.logoUrl || '/assets/uts-logo.png';
+  const headerLogo = document.getElementById('portal-header-logo');
+  if (headerLogo) headerLogo.src = activeLogo;
+  const showcaseLogo = document.getElementById('landing-showcase-logo');
+  if (showcaseLogo) showcaseLogo.src = activeLogo;
+
   document.getElementById('landing-quiz-title').textContent =
-    settings.quizTitle || 'EMBEDX Workshop Quiz';
+    settings.quizTitle || 'Placement Drive Assessment';
   document.getElementById('landing-workshop-subtitle').textContent =
-    settings.workshopName || 'Basics of Embedded Systems and Embedded Programming Language';
+    settings.workshopName || 'Online Technical & Aptitude Assessment';
   document.getElementById('meta-q-count').textContent = String(rawQuestions.length || 30);
   document.getElementById('meta-duration').textContent = `${settings.durationMinutes || 30} Min`;
 
@@ -154,7 +155,7 @@ function applySettingsToLandingUI() {
     closedBanner.classList.add('hidden');
     submitBtn.disabled = false;
     dot.style.background = '#d97706';
-    statusLabel.textContent = 'EEE Workshop Assessment';
+    statusLabel.textContent = 'Placement Drive Assessment';
   }
 }
 
@@ -662,15 +663,6 @@ async function finalizeQuizSubmission(submitReason = 'Manual Submit', isAutoSubm
   const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
   const elapsedSeconds = Math.max(1, Math.round((Date.now() - attemptState.startedAt) / 1000));
 
-  let certEligible = false;
-  if (settings.certificateMode === 'all_completions') {
-    certEligible = true;
-  } else if (settings.certificateMode === 'min_score') {
-    certEligible = percentage >= Number(settings.minScorePercentForCert || 50);
-  } else {
-    certEligible = false;
-  }
-
   const submissionPayload = {
     fullName: candidate.fullName,
     email: candidate.email,
@@ -689,10 +681,6 @@ async function finalizeQuizSubmission(submitReason = 'Manual Submit', isAutoSubm
     violations: attemptState.violations || [],
     submitReason,
     isAutoSubmitted,
-    certificateStatus: certEligible ? 'PROCESSING' : 'MANUAL_APPROVAL_PENDING',
-    certificateId: '',
-    certificatePdfUrl: '',
-    certificateError: '',
     breakdown: detailedBreakdown,
     submittedAt: new Date().toISOString()
   };
@@ -702,41 +690,6 @@ async function finalizeQuizSubmission(submitReason = 'Manual Submit', isAutoSubm
   await removeActiveSession(candidate.email, candidate.registerNumber);
 
   renderResultScreen(savedRecord, false);
-
-  if (certEligible && settings.camsEnabled) {
-    const camsResult = await issueCamsCertificate(savedRecord, settings);
-    const certPatch = camsResult.ok
-      ? {
-          certificateStatus: 'SENT',
-          certificateId: camsResult.certificateId || '',
-          certificatePdfUrl: camsResult.pdfUrl || '',
-          certificateSentAt: new Date().toISOString(),
-          certificateError: ''
-        }
-      : {
-          certificateStatus: camsResult.status || 'QUEUED_RETRY',
-          certificateError: camsResult.message || ''
-        };
-
-    await updateSubmissionCertificateStatus(savedRecord.id, certPatch);
-    if (camsResult.ok && camsResult.certificateId) {
-      await upsertVerifiedCertificate({
-        certificateId: camsResult.certificateId,
-        name: savedRecord.fullName,
-        registerNumber: savedRecord.registerNumber,
-        department: savedRecord.department || FIXED_DEPARTMENT,
-        year: savedRecord.year,
-        workshop: settings.workshopName,
-        courseName: settings.quizTitle,
-        conductedBy: settings.conductedBy,
-        duration: settings.courseDuration,
-        organization: settings.organizationName || FIXED_COLLEGE
-      });
-    }
-    renderCertificateBanner({ ...savedRecord, ...certPatch });
-  } else {
-    renderCertificateBanner(savedRecord);
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -760,7 +713,7 @@ function renderResultScreen(record, isReturningLookup) {
 
   document.getElementById('result-candidate-line').textContent = `${record.fullName} · ${
     record.registerNumber
-  } (${record.year || 'EEE'})`;
+  } (${record.year || 'Candidate'})`;
 
   const visibility = settings.resultVisibility || 'score_only';
   const scoreSection = document.getElementById('result-score-section');
@@ -787,8 +740,6 @@ function renderResultScreen(record, isReturningLookup) {
   } else {
     autoAlert.classList.add('hidden');
   }
-
-  renderCertificateBanner(record);
 
   const reviewWrap = document.getElementById('result-answers-review');
   const reviewList = document.getElementById('result-answers-list');
@@ -830,65 +781,6 @@ function renderResultScreen(record, isReturningLookup) {
   } else {
     reviewWrap.classList.add('hidden');
   }
-}
-
-function renderCertificateBanner(record) {
-  const box = document.getElementById('result-cert-box');
-  const title = document.getElementById('cert-status-title');
-  const desc = document.getElementById('cert-status-desc');
-  const idRow = document.getElementById('cert-id-row');
-  const idVal = document.getElementById('cert-id-value');
-  const verifyBtn = document.getElementById('cert-verify-btn');
-  const pdfBtn = document.getElementById('cert-pdf-btn');
-
-  if (record.certificateStatus === 'SENT') {
-    box.classList.remove('pending');
-    title.style.color = '#047857';
-    title.textContent = '✓ CAMS Certificate Generated & Emailed!';
-    desc.textContent = `Your signed PDF Certificate of Participation has been sent to ${record.email}. Check your Inbox (and Spam/Promotions tab).`;
-    if (record.certificateId) {
-      idRow.classList.remove('hidden');
-      idVal.textContent = record.certificateId;
-      verifyBtn.href = buildVerificationLink(
-        settings.camsVerificationUrl,
-        record.certificateId
-      );
-      if (record.certificatePdfUrl) {
-        pdfBtn.href = record.certificatePdfUrl;
-        pdfBtn.classList.remove('hidden');
-      } else {
-        pdfBtn.classList.add('hidden');
-      }
-    }
-    return;
-  }
-
-  if (record.certificateStatus === 'PROCESSING') {
-    box.classList.add('pending');
-    title.style.color = '#b45309';
-    title.textContent = '⏳ Generating Your CAMS Certificate...';
-    desc.textContent = `Preparing your personalized PDF certificate & QR verification for ${record.email}...`;
-    idRow.classList.add('hidden');
-    return;
-  }
-
-  if (
-    settings.certificateMode === 'min_score' &&
-    record.percentage < Number(settings.minScorePercentForCert || 50)
-  ) {
-    box.classList.add('pending');
-    title.style.color = '#b91c1c';
-    title.textContent = 'Minimum Passing Score Not Reached';
-    desc.textContent = `A minimum score of ${settings.minScorePercentForCert}% is required for automatic certificate issuance.`;
-    idRow.classList.add('hidden');
-    return;
-  }
-
-  box.classList.add('pending');
-  title.style.color = '#5b21b6';
-  title.textContent = '✓ Registered for CAMS Certificate Delivery';
-  desc.textContent = `Your completion record is saved! Your signed PDF certificate will be delivered to ${record.email} via the EMBEDX CAMS system.`;
-  idRow.classList.add('hidden');
 }
 
 function escapeHtml(str) {

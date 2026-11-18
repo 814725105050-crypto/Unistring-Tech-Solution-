@@ -1,26 +1,25 @@
 /**
- * Firebase & CAMS Configuration — Connected to `embedx-assessment`
- * EMBEDX | Embedded Systems & Automation Club · Dept. of EEE · SRM TRP Engineering College
+ * Firebase Configuration — Unistring Tech Solution Placement Drive Assessment
  */
 
 export const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyACO6JtEgvD_n5m5haPV-0y91Z76UI9C18",
-  authDomain: "embedx-assessment.firebaseapp.com",
-  projectId: "embedx-assessment",
-  storageBucket: "embedx-assessment.firebasestorage.app",
-  messagingSenderId: "803481654330",
-  appId: "1:803481654330:web:3bd07cd5cf42c4de1e5103",
-  measurementId: "G-S94VH65XXC"
+  apiKey: "AIzaSyDA7t71gpJu25Bqu5SsPHFoRPRoT2P6Jxw",
+  authDomain: "unistring-tech-solution.firebaseapp.com",
+  projectId: "unistring-tech-solution",
+  storageBucket: "unistring-tech-solution.firebasestorage.app",
+  messagingSenderId: "12508598977",
+  appId: "1:12508598977:web:ca6748e7f4b6cbc9233a40",
+  measurementId: "G-4SDKR132EE"
 };
 
-export const OFFICIAL_FIREBASE_VERIFY_URL = 'https://embedx-assessment.web.app/verify';
+export const OFFICIAL_FIREBASE_VERIFY_URL = 'https://unistring-tech-solution.web.app/verify';
 
 /**
  * Checks whether an admin runtime override exists, otherwise returns live FIREBASE_CONFIG.
  */
 export function getEffectiveFirebaseConfig() {
   try {
-    const saved = localStorage.getItem('embedx_firebase_config_override');
+    const saved = localStorage.getItem('uts_firebase_config_override');
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && parsed.apiKey && !String(parsed.apiKey).startsWith('REPLACE_WITH_')) {
@@ -44,27 +43,34 @@ export function isFirebaseConfigured(cfg = getEffectiveFirebaseConfig()) {
 }
 
 /**
- * Exclusive Admin Credentials Policy
- * Enforced in client auth gate, Firebase Auth bootstrap, AND Firestore Security Rules.
+ * Admin Credentials Policy
+ * Accepts either admin@unistring.com or existing admin credentials.
  */
 export const ADMIN_ACCESS = Object.freeze({
-  allowedEmail: '814725105014@trp.srmtrichy.edu.in',
-  // SHA-256 of "Hari@EEE29"
-  passwordSha256: '02ec78533da916a8a24392b408d3a32aa4a5d766bf5632b40f08a5d230c4f920'
+  allowedEmails: [
+    'admin@unistring.com',
+    '814725105014@trp.srmtrichy.edu.in'
+  ],
+  allowedEmail: 'admin@unistring.com',
+  // SHA-256 of "Admin@UTS2026" and fallback "Hari@EEE29"
+  allowedPasswordHashes: [
+    'e9447e45300f2ae9b276d4df997871b699a7065961d6ecbcfd5069b2d8697193', // Admin@UTS2026
+    '02ec78533da916a8a24392b408d3a32aa4a5d766bf5632b40f08a5d230c4f920'  // Hari@EEE29
+  ],
+  passwordSha256: 'e9447e45300f2ae9b276d4df997871b699a7065961d6ecbcfd5069b2d8697193'
 });
 
 /**
- * Default Portal & CAMS Certificate Settings
- * Pre-configured for SRM TRP Engineering College — EMBEDX Club (Dept. of EEE)
- * Matched to CAMS Spreadsheet: 1jiVDFpIxGwfSlHBt3vaHl-5GFd8DPGapSS4tsR-FhJQ
+ * Default Portal & Placement Drive Assessment Settings
  */
 export const DEFAULT_PORTAL_SETTINGS = {
   quizOpen: true,
-  quizTitle: 'EMBEDX Workshop Quiz',
-  workshopName: 'Basics of Embedded Systems and Embedded Programming Language',
-  courseDuration: '1 Day',
-  conductedBy: 'EMBEDX | Embedded Systems & Automation Club',
-  organizationName: 'SRM TRP Engineering College · Dept. of EEE',
+  quizTitle: 'Placement Drive Assessment',
+  workshopName: 'Unistring Placement Assessment',
+  courseDuration: 'Placement Drive',
+  conductedBy: 'Unistring Tech Solution',
+  organizationName: 'Unistring Tech Solution',
+  logoUrl: '/assets/uts-logo.png',
   durationMinutes: 30,
   maxWarnings: 2,
   returnGraceSeconds: 20,
@@ -77,15 +83,9 @@ export const DEFAULT_PORTAL_SETTINGS = {
   examAccessCode: '',
   // Student post-submit display: 'score_only' | 'receipt_only' | 'full_answers'
   resultVisibility: 'score_only',
-  // Certificate policy: 'all_completions' | 'min_score' | 'manual_only'
-  certificateMode: 'all_completions',
-  minScorePercentForCert: 0,
-  // CAMS Google Apps Script Web App integration (backend PDF + Gmail worker)
-  camsEnabled: true,
-  camsWebhookUrl:
-    'https://script.google.com/macros/s/AKfycbxQcAOxGv7alzmzSCwlXet5EeUA2_vXGBsLcUk6GPN1WEwX5LdLYgyNMcoJgOS1tXNe/exec',
-  // Direct Firebase Verification URL encoded in QR codes (NEVER Apps Script!)
+  // Certificate system removed
+  camsEnabled: false,
+  camsWebhookUrl: '',
   camsVerificationUrl: OFFICIAL_FIREBASE_VERIFY_URL,
-  camsApiSecret: 'EMBEDX-SRMTRP-2026',
-  collegeLogoDriveId: '1FEmwo2vGwZA4h_Os0kBBm5ad3eiCRBal'
+  camsApiSecret: ''
 };

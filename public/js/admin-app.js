@@ -1,6 +1,5 @@
 /**
- * EMBEDX Coordinator Admin Console Logic
- * Strictly restricted to: 814725105014@trp.srmtrichy.edu.in
+ * Unistring Tech Solution - Coordinator Admin Console Logic
  */
 
 import {
@@ -14,24 +13,14 @@ import {
   resetQuestionsToDefault,
   savePortalSettings,
   saveQuestions,
-  subscribeToAdminData,
-  updateSubmissionCertificateStatus,
-  upsertVerifiedCertificate
+  subscribeToAdminData
 } from './db-service.js';
-import {
-  buildCamsCompatibleCsv,
-  buildVerificationLink,
-  issueCamsCertificate,
-  pingCamsWebhook
-} from './cams-client.js';
-import { getEffectiveFirebaseConfig, isFirebaseConfigured } from './firebase-config.js';
 
 let settings = null;
 let questions = [];
 let allSubmissions = [];
 let liveSessions = [];
 let unsubData = null;
-let activeGsFileName = 'QRManager.gs';
 
 const loginView = document.getElementById('admin-login-view');
 const dashView = document.getElementById('admin-dashboard-view');
@@ -70,38 +59,21 @@ async function enterDashboard(session) {
     backend.mode === 'firebase' && backend.firestoreCloudHealthy
       ? `Cloud Firestore Live (${backend.projectId})`
       : backend.mode === 'firebase'
-      ? `Connected to ${backend.projectId} (Enable Firestore & Email Auth in Console)`
-      : 'Preview / Local Sync Mode';
+      ? `Connected to ${backend.projectId} (Cloud Sync Active)`
+      : 'Local Sync Mode';
   document.getElementById('admin-backend-badge').textContent = `${session.email} · ${modeLabel}`;
-
-  const setupAlert = document.getElementById('firebase-console-setup-alert');
-  if (setupAlert) {
-    setupAlert.classList.toggle(
-      'hidden',
-      backend.mode === 'firebase' &&
-        backend.firestoreCloudHealthy &&
-        session.mode !== 'firebase_pending_console_toggle'
-    );
-  }
 
   settings = await loadPortalSettings();
   questions = await loadQuestions();
 
+  applyBrandingLogos(settings?.logoUrl);
   populateSettingsForms();
   renderQuestionsBank();
-  loadWebhookScriptPreview();
 
   if (unsubData) unsubData();
-  unsubData = await subscribeToAdminData(({ submissions, activeSessions, firestoreCloudHealthy }) => {
+  unsubData = await subscribeToAdminData(({ submissions, activeSessions }) => {
     allSubmissions = submissions || [];
     liveSessions = activeSessions || [];
-    const setupAlertEl = document.getElementById('firebase-console-setup-alert');
-    if (setupAlertEl) {
-      setupAlertEl.classList.toggle(
-        'hidden',
-        Boolean(firestoreCloudHealthy) && session.mode !== 'firebase_pending_console_toggle'
-      );
-    }
     renderKPIs();
     renderLiveSessions();
     renderSubmissionsTable();
@@ -115,6 +87,20 @@ function showToast(msg, isError = false) {
   el.classList.remove('hidden');
   clearTimeout(el._timer);
   el._timer = setTimeout(() => el.classList.add('hidden'), 4500);
+}
+
+function applyBrandingLogos(url) {
+  const activeUrl = url || '/assets/uts-logo.png';
+  const ids = [
+    'login-header-logo',
+    'login-showcase-logo',
+    'dash-header-logo',
+    'admin-logo-preview'
+  ];
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.src = activeUrl;
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -177,37 +163,28 @@ function bindDashboardEvents() {
     });
   });
 
-  // Quick Quiz Open/Close toggle
+  // Quick Open/Close toggle
   document.getElementById('btn-quick-toggle-quiz').addEventListener('click', async () => {
     settings = await savePortalSettings({ quizOpen: !settings.quizOpen });
     populateSettingsForms();
-    showToast(settings.quizOpen ? 'Quiz is now OPEN for students.' : 'Quiz is now PAUSED.');
+    showToast(settings.quizOpen ? 'Assessment is now OPEN for candidates.' : 'Assessment is now PAUSED.');
   });
 
   // Quick Result Visibility selector
   document.getElementById('quick-result-visibility').addEventListener('change', async (e) => {
     settings = await savePortalSettings({ resultVisibility: e.target.value });
-    showToast('Updated student post-submission result display mode.');
+    showToast('Updated candidate post-submission result display mode.');
   });
 
   // Search & Filter
   document.getElementById('sub-search-input').addEventListener('input', renderSubmissionsTable);
   document.getElementById('sub-filter-select').addEventListener('change', renderSubmissionsTable);
 
-  // Bulk Issue Pending Certificates
-  document.getElementById('btn-bulk-issue-certs').addEventListener('click', handleBulkIssueCertificates);
-
-  // CSV Exports
-  document.getElementById('btn-export-cams-csv').addEventListener('click', () => {
-    if (!allSubmissions.length) return showToast('No submissions to export yet.', true);
-    const csv = buildCamsCompatibleCsv(allSubmissions, settings);
-    downloadTextFile(csv, `EMBEDX_CAMS_Sheet_Responses_${todayStamp()}.csv`, 'text/csv;charset=utf-8');
-  });
-
+  // CSV Export
   document.getElementById('btn-export-full-csv').addEventListener('click', () => {
     if (!allSubmissions.length) return showToast('No submissions to export yet.', true);
     const csv = buildDetailedResultsCsv(allSubmissions);
-    downloadTextFile(csv, `EMBEDX_Quiz_Results_${todayStamp()}.csv`, 'text/csv;charset=utf-8');
+    downloadTextFile(csv, `UTS_Placement_Results_${todayStamp()}.csv`, 'text/csv;charset=utf-8');
   });
 
   // Settings Form (Tab 2)
@@ -215,13 +192,11 @@ function bindDashboardEvents() {
     e.preventDefault();
     settings = await savePortalSettings({
       quizTitle: document.getElementById('cfg-quiz-title').value.trim(),
-      workshopName: document.getElementById('cfg-workshop-name').value.trim(),
+      conductedBy: document.getElementById('cfg-conducted-by').value.trim(),
       durationMinutes: Math.max(5, Number(document.getElementById('cfg-duration').value || 30)),
       examAccessCode: document.getElementById('cfg-hall-pin').value.trim(),
       maxWarnings: Math.max(0, Number(document.getElementById('cfg-max-warnings').value ?? 2)),
       returnGraceSeconds: Math.max(5, Number(document.getElementById('cfg-grace-sec').value ?? 20)),
-      certificateMode: document.getElementById('cfg-cert-mode').value,
-      minScorePercentForCert: Number(document.getElementById('cfg-min-score').value || 0),
       shuffleQuestions: document.getElementById('cfg-shuffle-q').checked,
       shuffleOptions: document.getElementById('cfg-shuffle-opt').checked,
       requireFullscreen: document.getElementById('cfg-fullscreen').checked,
@@ -229,18 +204,185 @@ function bindDashboardEvents() {
       watermarkRegNo: document.getElementById('cfg-watermark').checked
     });
     populateSettingsForms();
-    showToast('Saved quiz & security configuration.');
+    showToast('Saved assessment & security configuration.');
+  });
+
+  // Logo file upload
+  const logoInput = document.getElementById('logo-file-input');
+  logoInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select a valid image file (PNG, JPG, SVG, WebP).', true);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target.result;
+      settings = await savePortalSettings({ logoUrl: dataUrl });
+      applyBrandingLogos(dataUrl);
+      showToast('Company logo updated successfully!');
+    };
+    reader.onerror = () => {
+      showToast('Failed to read image file.', true);
+    };
+    reader.readAsDataURL(file);
+    logoInput.value = '';
+  });
+
+  // Reset default logo
+  document.getElementById('btn-reset-default-logo').addEventListener('click', async () => {
+    settings = await savePortalSettings({ logoUrl: '/assets/uts-logo.png' });
+    applyBrandingLogos('/assets/uts-logo.png');
+    showToast('Restored default UTS logo.');
   });
 
   // Question Bank Buttons (Tab 3)
   document.getElementById('btn-add-question').addEventListener('click', () => openQuestionEditor(-1));
   document.getElementById('btn-reset-questions').addEventListener('click', async () => {
-    if (!confirm('Reset the question bank back to the original 30 EMBEDX PDF questions?')) return;
+    if (!confirm('Reset the question bank back to the default sample questions?')) return;
     questions = await resetQuestionsToDefault();
     renderQuestionsBank();
-    showToast('Restored default 30 EMBEDX Workshop questions.');
+    showToast('Restored default sample questions.');
   });
 
+  // JSON Question Upload
+  const jsonInput = document.getElementById('json-upload-input');
+  document.getElementById('btn-upload-json').addEventListener('click', () => {
+    jsonInput.click();
+  });
+
+  jsonInput.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      let parsed = JSON.parse(text);
+
+      // Support either top-level array or { questions: [...] }
+      let rawList = [];
+      if (Array.isArray(parsed)) {
+        rawList = parsed;
+      } else if (parsed && Array.isArray(parsed.questions)) {
+        rawList = parsed.questions;
+      } else if (parsed && typeof parsed === 'object') {
+        const firstArrayProp = Object.values(parsed).find((val) => Array.isArray(val));
+        if (firstArrayProp) rawList = firstArrayProp;
+      }
+
+      if (!rawList || !rawList.length) {
+        throw new Error('No question array found in JSON file. Expected format: [{ question, options, correctIndex }, ...]');
+      }
+
+      const normalized = rawList.map((q, idx) => {
+        const questionText = String(q.question || q.prompt || q.title || '').trim();
+        if (!questionText) {
+          throw new Error(`Question #${idx + 1} is missing a question text string.`);
+        }
+
+        let opts = [];
+        if (Array.isArray(q.options)) {
+          opts = q.options.map((opt) => String(opt).trim());
+        } else if (q.type === 'tf') {
+          opts = ['True', 'False'];
+        }
+
+        if (opts.length < 2) {
+          throw new Error(`Question #${idx + 1} ("${questionText.slice(0, 30)}...") must have at least 2 options.`);
+        }
+
+        let correctIdx = 0;
+        if (typeof q.correctIndex === 'number') {
+          correctIdx = Math.max(0, Math.min(opts.length - 1, q.correctIndex));
+        } else if (typeof q.correctOption === 'number') {
+          // If 1-indexed option numbers were provided
+          correctIdx = q.correctOption > 0 && q.correctOption <= opts.length ? q.correctOption - 1 : 0;
+        } else if (q.answer !== undefined) {
+          if (typeof q.answer === 'number') {
+            correctIdx = Math.max(0, Math.min(opts.length - 1, q.answer));
+          } else if (typeof q.answer === 'string') {
+            const foundIdx = opts.findIndex(
+              (o) => o.toLowerCase() === q.answer.trim().toLowerCase()
+            );
+            correctIdx = foundIdx >= 0 ? foundIdx : 0;
+          }
+        }
+
+        return {
+          id: q.id || Date.now() + idx,
+          category: String(q.category || q.topic || 'General').trim(),
+          type: q.type === 'tf' ? 'tf' : 'mcq',
+          question: questionText,
+          options: opts,
+          correctIndex: correctIdx,
+          explanation: String(q.explanation || '').trim()
+        };
+      });
+
+      questions = normalized;
+      await saveQuestions(questions);
+      renderQuestionsBank();
+      showToast(`Successfully uploaded & saved ${normalized.length} questions from JSON!`);
+    } catch (err) {
+      showToast(`Failed to parse JSON file: ${err.message}`, true);
+    } finally {
+      jsonInput.value = '';
+    }
+  });
+
+  // Download JSON Template
+  document.getElementById('btn-download-json-template').addEventListener('click', () => {
+    const template = [
+      {
+        id: 1,
+        category: "Technical",
+        type: "mcq",
+        question: "Sample MCQ Question: What is the primary purpose of an index in a database?",
+        options: [
+          "Speed up data retrieval operations",
+          "Ensure permanent physical backup",
+          "Encrypt sensitive columns",
+          "Compress binary files"
+        ],
+        correctIndex: 0,
+        explanation: "Database indexes significantly optimize data retrieval speed."
+      },
+      {
+        id: 2,
+        category: "Logical Reasoning",
+        type: "tf",
+        question: "Sample True/False Question: In Git, a commit creates a snapshot of the repository.",
+        options: [
+          "True",
+          "False"
+        ],
+        correctIndex: 0,
+        explanation: "Git stores data as snapshots rather than diffs."
+      }
+    ];
+    downloadTextFile(
+      JSON.stringify(template, null, 2),
+      'uts_questions_template.json',
+      'application/json;charset=utf-8'
+    );
+  });
+
+  // Export current questions JSON
+  document.getElementById('btn-export-json').addEventListener('click', () => {
+    if (!questions || !questions.length) {
+      return showToast('No questions in bank to export.', true);
+    }
+    downloadTextFile(
+      JSON.stringify(questions, null, 2),
+      `uts_questions_export_${todayStamp()}.json`,
+      'application/json;charset=utf-8'
+    );
+  });
+
+  // Question modal editor
   document.getElementById('qedit-type').addEventListener('change', () => {
     renderQuestionModalOptionInputs(document.getElementById('qedit-type').value, []);
   });
@@ -248,78 +390,6 @@ function bindDashboardEvents() {
     document.getElementById('question-modal').classList.add('hidden');
   });
   document.getElementById('question-edit-form').addEventListener('submit', handleSaveQuestionModal);
-
-  // CAMS Config Form (Tab 4)
-  document.getElementById('cams-config-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    settings = await savePortalSettings({
-      camsEnabled: document.getElementById('cams-enabled').checked,
-      camsWebhookUrl: document.getElementById('cams-webhook-url').value.trim(),
-      camsVerificationUrl: document.getElementById('cams-verify-url').value.trim(),
-      camsApiSecret: document.getElementById('cams-secret').value.trim(),
-      courseDuration: document.getElementById('cams-duration').value.trim(),
-      conductedBy: document.getElementById('cams-conducted-by').value.trim()
-    });
-    showToast('Saved CAMS Certificate integration settings.');
-  });
-
-  document.getElementById('btn-test-cams').addEventListener('click', async () => {
-    const out = document.getElementById('cams-ping-result');
-    out.className = 'alert alert-info';
-    out.textContent = 'Pinging CAMS Google Apps Script Web App...';
-    out.classList.remove('hidden');
-
-    const tempSettings = {
-      ...settings,
-      camsWebhookUrl: document.getElementById('cams-webhook-url').value.trim(),
-      camsApiSecret: document.getElementById('cams-secret').value.trim()
-    };
-    const res = await pingCamsWebhook(tempSettings);
-    out.className = `alert ${res.ok ? 'alert-success' : 'alert-error'}`;
-    out.textContent = res.message;
-  });
-
-  document.getElementById('btn-copy-webhook-gs').addEventListener('click', async () => {
-    const code = document.getElementById('webhook-gs-preview').textContent;
-    await navigator.clipboard.writeText(code);
-    showToast(`Copied ${activeGsFileName} to clipboard!`);
-  });
-
-  document.querySelectorAll('.gs-tab-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const fileName = btn.dataset.gsfile;
-      loadWebhookScriptPreview(fileName);
-    });
-  });
-
-  // Firebase Runtime Config Box (Tab 4)
-  document.getElementById('btn-save-firebase-cfg').addEventListener('click', () => {
-    const raw = document.getElementById('firebase-json-input').value.trim();
-    if (!raw) return showToast('Paste your firebaseConfig JSON object first.', true);
-    try {
-      // Support pasting either pure JSON or `const firebaseConfig = { ... };`
-      const cleaned = raw
-        .replace(/^[^{]*=/, '')
-        .replace(/;\s*$/, '')
-        .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":')
-        .replace(/'/g, '"');
-      const parsed = JSON.parse(cleaned);
-      if (!parsed.apiKey || !parsed.projectId) {
-        return showToast('Config must contain apiKey and projectId.', true);
-      }
-      localStorage.setItem('embedx_firebase_config_override', JSON.stringify(parsed));
-      showToast('Firebase config saved! Reloading console in Cloud Mode...');
-      setTimeout(() => window.location.reload(), 900);
-    } catch (err) {
-      showToast('Invalid JSON format. Copy the { apiKey: "...", projectId: "..." } block.', true);
-    }
-  });
-
-  document.getElementById('btn-clear-firebase-cfg').addEventListener('click', () => {
-    localStorage.removeItem('embedx_firebase_config_override');
-    showToast('Cleared browser override. Reloading...');
-    setTimeout(() => window.location.reload(), 700);
-  });
 
   // Close Detail Modal
   document.getElementById('btn-close-detail-modal').addEventListener('click', () => {
@@ -335,24 +405,22 @@ function populateSettingsForms() {
   if (!settings) return;
   const openBtn = document.getElementById('btn-quick-toggle-quiz');
   if (settings.quizOpen) {
-    openBtn.textContent = '● Quiz Status: OPEN';
+    openBtn.textContent = '● Assessment Status: OPEN';
     openBtn.className = 'btn btn-gold btn-sm';
   } else {
-    openBtn.textContent = '⏸ Quiz Status: PAUSED';
+    openBtn.textContent = '⏸ Assessment Status: PAUSED';
     openBtn.className = 'btn btn-danger btn-sm';
   }
 
   document.getElementById('quick-result-visibility').value =
     settings.resultVisibility || 'score_only';
 
-  document.getElementById('cfg-quiz-title').value = settings.quizTitle || '';
-  document.getElementById('cfg-workshop-name').value = settings.workshopName || '';
+  document.getElementById('cfg-quiz-title').value = settings.quizTitle || 'Placement Drive Assessment';
+  document.getElementById('cfg-conducted-by').value = settings.conductedBy || 'Unistring Tech Solution';
   document.getElementById('cfg-duration').value = settings.durationMinutes ?? 30;
   document.getElementById('cfg-hall-pin').value = settings.examAccessCode || '';
   document.getElementById('cfg-max-warnings').value = settings.maxWarnings ?? 2;
   document.getElementById('cfg-grace-sec').value = settings.returnGraceSeconds ?? 20;
-  document.getElementById('cfg-cert-mode').value = settings.certificateMode || 'all_completions';
-  document.getElementById('cfg-min-score').value = settings.minScorePercentForCert ?? 0;
 
   document.getElementById('cfg-shuffle-q').checked = settings.shuffleQuestions !== false;
   document.getElementById('cfg-shuffle-opt').checked = settings.shuffleOptions !== false;
@@ -360,17 +428,7 @@ function populateSettingsForms() {
   document.getElementById('cfg-canvas-shield').checked = settings.canvasAntiSearch !== false;
   document.getElementById('cfg-watermark').checked = settings.watermarkRegNo !== false;
 
-  document.getElementById('cams-enabled').checked = settings.camsEnabled !== false;
-  document.getElementById('cams-webhook-url').value = settings.camsWebhookUrl || '';
-  document.getElementById('cams-verify-url').value = settings.camsVerificationUrl || '';
-  document.getElementById('cams-secret').value = settings.camsApiSecret || '';
-  document.getElementById('cams-duration').value = settings.courseDuration || '1 Day';
-  document.getElementById('cams-conducted-by').value = settings.conductedBy || '';
-
-  const effFb = getEffectiveFirebaseConfig();
-  if (isFirebaseConfigured(effFb)) {
-    document.getElementById('firebase-json-input').value = JSON.stringify(effFb, null, 2);
-  }
+  applyBrandingLogos(settings.logoUrl);
 }
 
 function renderKPIs() {
@@ -381,7 +439,6 @@ function renderKPIs() {
       : 0;
   const autoCount = allSubmissions.filter((s) => s.isAutoSubmitted).length;
   const warnTotal = allSubmissions.reduce((acc, s) => acc + Number(s.warningsUsed || 0), 0);
-  const certsSent = allSubmissions.filter((s) => s.certificateStatus === 'SENT').length;
 
   // Filter live sessions updated within last 2 minutes
   const freshLive = liveSessions.filter((ls) => {
@@ -394,7 +451,6 @@ function renderKPIs() {
   document.getElementById('kpi-avg-score').textContent = `${avg}%`;
   document.getElementById('kpi-auto-sub').textContent = String(autoCount);
   document.getElementById('kpi-warnings').textContent = String(warnTotal);
-  document.getElementById('kpi-certs-sent').textContent = String(certsSent);
 }
 
 function renderLiveSessions() {
@@ -422,9 +478,9 @@ function renderLiveSessions() {
       : '1.5px solid rgba(217, 119, 6, 0.35)';
     div.innerHTML = `
       <div style="font-weight:800; font-size:13.5px; color:#3b0764;">${escapeHtml(ls.fullName)}</div>
-      <div style="font-size:12px; color:var(--text-muted);">${escapeHtml(ls.registerNumber)} · ${escapeHtml(ls.year || 'EEE')}</div>
+      <div style="font-size:12px; color:var(--text-muted);">${escapeHtml(ls.registerNumber)} · ${escapeHtml(ls.year || 'Candidate')}</div>
       <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:12px;">
-        <span>Progress: <b>${ls.answeredCount || 0}/${ls.totalQuestions || 30}</b></span>
+        <span>Progress: <b>${ls.answeredCount || 0}/${ls.totalQuestions || questions.length || 30}</b></span>
         <span style="color:${ls.warningsUsed > 0 ? '#b91c1c' : '#047857'}; font-weight:700;">
           ${ls.inWarningState ? '⚠ 20s LOCKOUT!' : `${ls.warningsUsed || 0}/${ls.maxWarnings ?? 2} Warn`}
         </span>
@@ -442,18 +498,16 @@ function renderSubmissionsTable() {
   const filtered = allSubmissions.filter((s) => {
     if (filter === 'autosubmit' && !s.isAutoSubmitted) return false;
     if (filter === 'warned' && !(Number(s.warningsUsed || 0) > 0)) return false;
-    if (filter === 'cert_sent' && s.certificateStatus !== 'SENT') return false;
-    if (filter === 'cert_pending' && s.certificateStatus === 'SENT') return false;
 
     if (!q) return true;
-    const hay = `${s.fullName} ${s.registerNumber} ${s.email} ${s.department} ${s.certificateId || ''}`.toLowerCase();
+    const hay = `${s.fullName} ${s.registerNumber} ${s.email} ${s.year || ''}`.toLowerCase();
     return hay.includes(q);
   });
 
   if (!filtered.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align:center; color:var(--text-muted); padding:26px;">
+        <td colspan="6" style="text-align:center; color:var(--text-muted); padding:26px;">
           No matching submissions found.
         </td>
       </tr>
@@ -473,11 +527,6 @@ function renderSubmissionsTable() {
       ? `<span class="status-tag warn">${s.warningsUsed}/${s.maxWarnings ?? 2} Warnings</span>`
       : `<span class="status-tag ok">Clean (0W)</span>`;
 
-    const certTag =
-      s.certificateStatus === 'SENT'
-        ? `<span class="status-tag ok">✓ Sent</span><div style="font-size:11px; color:var(--text-muted); margin-top:2px; font-family:monospace;">${escapeHtml(s.certificateId || '')}</div>`
-        : `<span class="status-tag warn">${escapeHtml(s.certificateStatus || 'Pending')}</span>`;
-
     tr.innerHTML = `
       <td>
         <div style="font-weight:700;">${escapeHtml(s.fullName)}</div>
@@ -486,7 +535,7 @@ function renderSubmissionsTable() {
       </td>
       <td>
         <div style="font-family:monospace; font-weight:800; color:#3b0764;">${escapeHtml(s.registerNumber)}</div>
-        <div style="font-size:11.5px; color:var(--text-muted);">EEE · ${escapeHtml(s.year)}</div>
+        <div style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(s.year || 'Candidate')}</div>
       </td>
       <td>
         <strong style="font-size:15px; color:#5b21b6;">${s.score}/${s.totalQuestions}</strong>
@@ -494,26 +543,19 @@ function renderSubmissionsTable() {
       </td>
       <td>${mins}m ${secs}s</td>
       <td>${secTag}</td>
-      <td>${certTag}</td>
       <td>
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
           <button type="button" class="btn btn-secondary btn-sm act-inspect">Details</button>
-          <button type="button" class="btn btn-primary btn-sm act-cert">
-            ${s.certificateStatus === 'SENT' ? 'Resend' : 'Issue Cert'}
-          </button>
-          <button type="button" class="btn btn-danger btn-sm act-retake" title="Delete attempt & allow retake">↺</button>
+          <button type="button" class="btn btn-danger btn-sm act-retake" title="Delete attempt & allow retake">↺ Retake</button>
         </div>
       </td>
     `;
 
     tr.querySelector('.act-inspect').addEventListener('click', () => openSubmissionModal(s));
-    tr.querySelector('.act-cert').addEventListener('click', (ev) =>
-      handleSingleCertificateIssue(s, ev.currentTarget)
-    );
     tr.querySelector('.act-retake').addEventListener('click', async () => {
       if (
         !confirm(
-          `Allow ${s.fullName} (${s.registerNumber}) to retake the quiz? This removes their current submission lock.`
+          `Allow ${s.fullName} (${s.registerNumber}) to retake the assessment? This clears their current submission record.`
         )
       )
         return;
@@ -524,115 +566,6 @@ function renderSubmissionsTable() {
     tbody.appendChild(tr);
   });
 }
-
-/* -------------------------------------------------------------------------- */
-/* CAMS Manual & Bulk Trigger Handlers                                        */
-/* -------------------------------------------------------------------------- */
-
-async function handleSingleCertificateIssue(submission, btnEl) {
-  if (btnEl) {
-    btnEl.disabled = true;
-    btnEl.textContent = 'Sending...';
-  }
-  try {
-    const res = await issueCamsCertificate(submission, settings);
-    if (res.ok) {
-      await updateSubmissionCertificateStatus(submission.id, {
-        certificateStatus: 'SENT',
-        certificateId: res.certificateId || '',
-        certificatePdfUrl: res.pdfUrl || '',
-        certificateSentAt: new Date().toISOString(),
-        certificateError: ''
-      });
-      if (res.certificateId) {
-        await upsertVerifiedCertificate({
-          certificateId: res.certificateId,
-          name: submission.fullName,
-          registerNumber: submission.registerNumber,
-          department: submission.department || 'EEE',
-          year: submission.year,
-          workshop: settings.workshopName,
-          courseName: settings.quizTitle,
-          conductedBy: settings.conductedBy,
-          duration: settings.courseDuration,
-          organization: settings.organizationName
-        });
-      }
-      showToast(`Certificate ${res.certificateId} sent to ${submission.email}!`);
-    } else {
-      await updateSubmissionCertificateStatus(submission.id, {
-        certificateStatus: res.status || 'FAILED',
-        certificateError: res.message || ''
-      });
-      showToast(res.message, true);
-    }
-  } finally {
-    if (btnEl) {
-      btnEl.disabled = false;
-      btnEl.textContent = 'Issue Cert';
-    }
-  }
-}
-
-async function handleBulkIssueCertificates() {
-  const pending = allSubmissions.filter((s) => s.certificateStatus !== 'SENT');
-  if (!pending.length) {
-    return showToast('All submitted participants already have Sent certificates!');
-  }
-  const btn = document.getElementById('btn-bulk-issue-certs');
-  btn.disabled = true;
-
-  let sentCount = 0;
-  let lastErr = '';
-  for (let i = 0; i < pending.length; i++) {
-    btn.textContent = `Issuing ${i + 1}/${pending.length}...`;
-    const res = await issueCamsCertificate(pending[i], settings);
-    if (res.ok) {
-      sentCount++;
-      await updateSubmissionCertificateStatus(pending[i].id, {
-        certificateStatus: 'SENT',
-        certificateId: res.certificateId || '',
-        certificatePdfUrl: res.pdfUrl || '',
-        certificateSentAt: new Date().toISOString(),
-        certificateError: ''
-      });
-      if (res.certificateId) {
-        await upsertVerifiedCertificate({
-          certificateId: res.certificateId,
-          name: pending[i].fullName,
-          registerNumber: pending[i].registerNumber,
-          department: pending[i].department || 'EEE',
-          year: pending[i].year,
-          workshop: settings.workshopName,
-          courseName: settings.quizTitle,
-          conductedBy: settings.conductedBy,
-          duration: settings.courseDuration,
-          organization: settings.organizationName
-        });
-      }
-    } else {
-      lastErr = res.message;
-      await updateSubmissionCertificateStatus(pending[i].id, {
-        certificateStatus: res.status || 'QUEUED_RETRY',
-        certificateError: res.message || ''
-      });
-      if (res.status === 'QUEUED_WEBHOOK_SETUP_NEEDED') break;
-    }
-  }
-
-  btn.disabled = false;
-  btn.textContent = '✉ Issue All Pending Certificates';
-
-  if (sentCount > 0) {
-    showToast(`Issued & emailed ${sentCount} CAMS certificate(s)!`);
-  } else {
-    showToast(lastErr || 'Could not issue pending certificates yet. Check Tab 4 CAMS setup.', true);
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Submission Inspection Modal (Violation Timeline + Answers)                 */
-/* -------------------------------------------------------------------------- */
 
 function openSubmissionModal(s) {
   document.getElementById('detail-modal-title').textContent = `${s.fullName} (${s.registerNumber})`;
@@ -650,10 +583,6 @@ function openSubmissionModal(s) {
         )
         .join('')
     : `<div style="font-size:13px; color:#047857; font-weight:600;">✓ Zero security violations recorded.</div>`;
-
-  const verifyUrl = s.certificateId
-    ? buildVerificationLink(settings.camsVerificationUrl, s.certificateId)
-    : '';
 
   const breakdownHtml = Array.isArray(s.breakdown)
     ? s.breakdown
@@ -675,16 +604,10 @@ function openSubmissionModal(s) {
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px; margin-bottom:14px; padding:12px; background:#fbf9ff; border:1px solid rgba(217,119,6,0.3); border-radius:10px;">
       <div><strong>Email:</strong> ${escapeHtml(s.email)}</div>
       <div><strong>Mobile:</strong> ${escapeHtml(s.phone || '-')}</div>
-      <div><strong>Dept / Year:</strong> EEE · ${escapeHtml(s.year)}</div>
-      <div><strong>College:</strong> SRM TRP Engineering College</div>
+      <div><strong>Batch / Year:</strong> ${escapeHtml(s.year || '-')}</div>
+      <div><strong>Company:</strong> Unistring Tech Solution</div>
       <div><strong>Score:</strong> ${s.score}/${s.totalQuestions} (${s.percentage}%)</div>
-      <div><strong>Submit Reason:</strong> ${escapeHtml(s.submitReason)}</div>
-      <div><strong>Cert Status:</strong> ${escapeHtml(s.certificateStatus)}</div>
-      <div><strong>Cert ID:</strong> ${
-        verifyUrl
-          ? `<a href="${escapeHtml(verifyUrl)}" target="_blank" style="color:#5b21b6; font-weight:700;">${escapeHtml(s.certificateId)} ↗</a>`
-          : '-'
-      }</div>
+      <div><strong>Submit Reason:</strong> ${escapeHtml(s.submitReason || 'Manual Submit')}</div>
     </div>
 
     <h4 style="margin:12px 0 8px; font-size:14px; color:#3b0764;">Proctoring &amp; Violation Timeline (${violations.length})</h4>
@@ -692,7 +615,7 @@ function openSubmissionModal(s) {
 
     <h4 style="margin:16px 0 8px; font-size:14px; color:#3b0764;">Question-by-Question Responses</h4>
     <div style="max-height:280px; overflow-y:auto; border:1px solid rgba(91,33,182,0.16); border-radius:10px; background:#fff;">
-      ${breakdownHtml}
+      ${breakdownHtml || '<div style="padding:12px; color:var(--text-muted);">No breakdown available.</div>'}
     </div>
   `;
 
@@ -704,7 +627,11 @@ function openSubmissionModal(s) {
 /* -------------------------------------------------------------------------- */
 
 function renderQuestionsBank() {
-  document.getElementById('qbank-count').textContent = String(questions.length);
+  const countStr = String(questions.length);
+  document.getElementById('qbank-count').textContent = countStr;
+  const tabCountEl = document.getElementById('tab-qbank-count');
+  if (tabCountEl) tabCountEl.textContent = countStr;
+
   const wrap = document.getElementById('questions-admin-list');
   wrap.innerHTML = '';
 
@@ -747,7 +674,7 @@ function renderQuestionsBank() {
 
     card.querySelector('.q-edit').addEventListener('click', () => openQuestionEditor(idx));
     card.querySelector('.q-del').addEventListener('click', async () => {
-      if (questions.length <= 1) return showToast('Quiz must have at least 1 question.', true);
+      if (questions.length <= 1) return showToast('Assessment must have at least 1 question.', true);
       if (!confirm(`Delete Question #${idx + 1}?`)) return;
       questions.splice(idx, 1);
       await saveQuestions(questions);
@@ -768,7 +695,7 @@ function openQuestionEditor(idx) {
 
   const q = isNew
     ? {
-        category: 'Embedded Systems',
+        category: 'Technical',
         type: 'mcq',
         question: '',
         options: ['', '', '', ''],
@@ -822,7 +749,7 @@ async function handleSaveQuestionModal(e) {
 
   const item = {
     id: idx >= 0 && questions[idx] ? questions[idx].id : Date.now(),
-    category: document.getElementById('qedit-category').value.trim(),
+    category: document.getElementById('qedit-category').value.trim() || 'General',
     type,
     question: document.getElementById('qedit-prompt').value.trim(),
     options,
@@ -836,51 +763,28 @@ async function handleSaveQuestionModal(e) {
   await saveQuestions(questions);
   document.getElementById('question-modal').classList.add('hidden');
   renderQuestionsBank();
-  showToast('Saved question bank.');
+  showToast('Saved question.');
 }
 
 /* -------------------------------------------------------------------------- */
-/* Utilities                                                                  */
+/* Utilities & CSV Export                                                     */
 /* -------------------------------------------------------------------------- */
-
-async function loadWebhookScriptPreview(fileName = 'QRManager.gs') {
-  activeGsFileName = fileName;
-  const copyBtn = document.getElementById('btn-copy-webhook-gs');
-  if (copyBtn) copyBtn.textContent = `Copy ${fileName}`;
-
-  document.querySelectorAll('.gs-tab-btn').forEach((btn) => {
-    const isActive = btn.dataset.gsfile === fileName;
-    btn.className = `btn ${isActive ? 'btn-primary' : 'btn-secondary'} btn-sm gs-tab-btn`;
-  });
-
-  try {
-    const res = await fetch(`/assets/${encodeURIComponent(fileName)}.txt`);
-    if (res.ok) {
-      document.getElementById('webhook-gs-preview').textContent = await res.text();
-    }
-  } catch (_) {}
-}
 
 function buildDetailedResultsCsv(submissions) {
   const headers = [
     'Submitted At',
     'Full Name',
-    'Register Number',
+    'Candidate ID',
     'Email',
     'Mobile',
-    'Department',
-    'Year',
-    'College',
+    'Batch',
     'Score',
     'Total Questions',
     'Percentage',
     'Time Seconds',
     'Warnings Used',
     'Auto Submitted',
-    'Submit Reason',
-    'Certificate Status',
-    'Certificate ID',
-    'Certificate PDF URL'
+    'Submit Reason'
   ];
 
   const rows = submissions.map((s) => [
@@ -889,19 +793,14 @@ function buildDetailedResultsCsv(submissions) {
     s.registerNumber || '',
     s.email || '',
     s.phone || '',
-    s.department || '',
     s.year || '',
-    s.college || '',
     s.score ?? 0,
-    s.totalQuestions ?? 30,
+    s.totalQuestions ?? (questions.length || 30),
     `${s.percentage ?? 0}%`,
     s.elapsedSeconds ?? 0,
     s.warningsUsed ?? 0,
     s.isAutoSubmitted ? 'YES' : 'NO',
-    s.submitReason || '',
-    s.certificateStatus || '',
-    s.certificateId || '',
-    s.certificatePdfUrl || ''
+    s.submitReason || ''
   ]);
 
   return [headers, ...rows]

@@ -5,39 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#3b0764" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>Coordinator Admin Console · EMBEDX EEE</title>
-  <link rel="icon" type="image/png" href="/assets/embedx-icon.png" />
-  <link rel="apple-touch-icon" href="/assets/embedx-icon.png" />
+  <title>Admin Console · Unistring Tech Solution</title>
+  <link rel="icon" type="image/png" href="/assets/uts-logo.png" />
+  <link rel="apple-touch-icon" href="/assets/uts-logo.png" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
 <body>
 
   <!-- =====================================================================
-       SEPARATE STANDALONE ADMIN LOGIN VIEW (/admin)
-       Strictly Restricted to 814725105014@trp.srmtrichy.edu.in
+       STANDALONE ADMIN LOGIN VIEW (/admin)
        ===================================================================== -->
   <main id="admin-login-view" class="app-shell">
     <header class="brand-bar">
       <div class="brand-id">
         <div class="brand-emblem">
-          <img src="/assets/embedx-icon.png" alt="EMBEDX" />
+          <img id="login-header-logo" src="/assets/uts-logo.png" alt="Unistring Tech Solution" />
         </div>
         <div class="brand-titles">
-          <h1>EMBEDX Coordinator Login</h1>
-          <p>Dept. of EEE · SRM TRP Engineering College</p>
+          <h1>Admin Login</h1>
+          <p>Unistring Tech Solution · Assessment Portal</p>
         </div>
       </div>
     </header>
 
     <section class="card">
       <div class="club-logo-showcase">
-        <img src="/assets/embedx-logo.png" alt="EMBEDX — Embedded Systems and Automation · EEE" />
+        <img id="login-showcase-logo" src="/assets/uts-logo.png" alt="Unistring Tech Solution" />
       </div>
       <div style="text-align: center;">
         <div class="hero-chip">Restricted Admin Portal</div>
         <h2 class="card-title">Administrator Sign In</h2>
         <p class="card-subtitle">
-          Dedicated sign-in for authorized EMBEDX Quiz Control, Live Anti-Cheat Proctoring &amp; CAMS Certificate Management.
+          Dedicated sign-in for authorized Assessment Control, Live Anti-Cheat Proctoring &amp; Question Management.
         </p>
       </div>
 
@@ -50,7 +49,7 @@
             <input
               type="email"
               id="admin-email"
-              placeholder="Enter authorized administrator email"
+              placeholder="e.g. admin@unistring.com"
               autocomplete="username"
               required
             />
@@ -94,25 +93,19 @@
     <header class="brand-bar" style="flex-wrap: wrap;">
       <div class="brand-id">
         <div class="brand-emblem">
-          <img src="/assets/embedx-icon.png" alt="EMBEDX" />
+          <img id="dash-header-logo" src="/assets/uts-logo.png" alt="Unistring Tech Solution" />
         </div>
         <div class="brand-titles">
-          <h1>EMBEDX Coordinator Control Center</h1>
-          <p id="admin-backend-badge">Signed in as 814725105014@trp.srmtrichy.edu.in</p>
+          <h1>Unistring Tech Solution Control Center</h1>
+          <p id="admin-backend-badge">Signed in as Administrator</p>
         </div>
       </div>
 
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <a href="/" target="_blank" class="header-pill">Open Student Quiz ↗</a>
+        <a href="/" target="_blank" class="header-pill">Open Student Assessment ↗</a>
         <button type="button" id="btn-admin-logout" class="btn btn-gold btn-sm">Sign Out</button>
       </div>
     </header>
-
-    <div id="firebase-console-setup-alert" class="alert alert-info hidden">
-      <strong>Finish 2 Quick Switches in Firebase Console (<code>embedx-assessment</code>):</strong><br />
-      1. Enable Email/Password Sign-In: <a href="https://console.firebase.google.com/project/embedx-assessment/authentication/providers" target="_blank" rel="noopener" style="color:#5b21b6; font-weight:700;">Open Firebase Auth Providers ↗</a><br />
-      2. Create Cloud Firestore Database: <a href="https://console.firebase.google.com/project/embedx-assessment/firestore" target="_blank" rel="noopener" style="color:#5b21b6; font-weight:700;">Open Cloud Firestore ↗</a>
-    </div>
 
     <div id="admin-toast" class="alert alert-success hidden"></div>
 
@@ -138,10 +131,6 @@
         <div class="label">Warnings Logged</div>
         <div id="kpi-warnings" class="value" style="color: #d97706;">0</div>
       </div>
-      <div class="stat-box">
-        <div class="label">Certificates Sent</div>
-        <div id="kpi-certs-sent" class="value" style="color: #4c1d95;">0</div>
-      </div>
     </section>
 
     <!-- Navigation Tabs -->
@@ -150,13 +139,10 @@
         1. Live Monitor &amp; Submissions
       </button>
       <button type="button" class="tab-btn" data-tab="settings">
-        2. Quiz &amp; Security Rules
+        2. Assessment &amp; Branding Settings
       </button>
       <button type="button" class="tab-btn" data-tab="questions">
-        3. Question Bank (30)
-      </button>
-      <button type="button" class="tab-btn" data-tab="cams">
-        4. CAMS Certificate &amp; Firebase Setup
+        3. Question Bank (<span id="tab-qbank-count">30</span>)
       </button>
     </nav>
 
@@ -170,12 +156,12 @@
         <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:center; justify-content:space-between;">
           <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
             <button type="button" id="btn-quick-toggle-quiz" class="btn btn-gold btn-sm">
-              ● Quiz Status: OPEN
+              ● Assessment Status: OPEN
             </button>
             <div style="display:flex; align-items:center; gap:8px; font-size:13px;">
               <span style="color:var(--text-secondary); font-weight:600;">Student Result View:</span>
               <select id="quick-result-visibility" style="padding:7px 11px; border-radius:8px; background:#fff; color:#1e1035; border:1.5px solid rgba(91,33,182,0.22); font-size:13px; font-weight:600;">
-                <option value="score_only">Score &amp; Cert Status Only</option>
+                <option value="score_only">Score Only</option>
                 <option value="receipt_only">Submission Receipt Only (Hide Score)</option>
                 <option value="full_answers">Full Score + Answers &amp; Explanations</option>
               </select>
@@ -183,14 +169,8 @@
           </div>
 
           <div style="display:flex; flex-wrap:wrap; gap:8px;">
-            <button type="button" id="btn-bulk-issue-certs" class="btn btn-primary btn-sm">
-              ✉ Issue All Pending Certificates
-            </button>
-            <button type="button" id="btn-export-cams-csv" class="btn btn-secondary btn-sm">
-              ⬇ Export CAMS Sheet CSV
-            </button>
             <button type="button" id="btn-export-full-csv" class="btn btn-secondary btn-sm">
-              ⬇ Export Full Results CSV
+              ⬇ Export Results CSV
             </button>
           </div>
         </div>
@@ -199,7 +179,7 @@
       <!-- Active Live Test-Takers -->
       <div id="live-sessions-card" class="card hidden">
         <h3 style="margin:0 0 10px; font-size:15px; color:#5b21b6;">
-          ● Students Currently Taking Quiz Live
+          ● Candidates Currently Taking Assessment Live
         </h3>
         <div id="live-sessions-list" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:10px;"></div>
       </div>
@@ -210,7 +190,7 @@
           <input
             type="search"
             id="sub-search-input"
-            placeholder="Search by Name, Reg No, Email or Year..."
+            placeholder="Search by Name, Candidate ID, or Email..."
             style="max-width:340px; width:100%; padding:9px 12px; border-radius:9px; background:#fff; border:1.5px solid rgba(91,33,182,0.22); color:#1e1035; font-size:14px;"
           />
           <select
@@ -220,8 +200,6 @@
             <option value="all">All Submissions</option>
             <option value="autosubmit">Auto-Submitted Only</option>
             <option value="warned">Had Security Warnings (≥1)</option>
-            <option value="cert_sent">Certificate Sent</option>
-            <option value="cert_pending">Certificate Pending / Queued</option>
           </select>
         </div>
 
@@ -229,19 +207,18 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>Participant</th>
-                <th>Reg No &amp; Year</th>
+                <th>Candidate</th>
+                <th>Candidate ID &amp; Batch</th>
                 <th>Score</th>
                 <th>Time</th>
                 <th>Security</th>
-                <th>CAMS Certificate</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="submissions-tbody">
               <tr>
-                <td colspan="7" style="text-align:center; color:var(--text-muted); padding:28px;">
-                  No quiz submissions yet. Share the Student Portal link to start collecting responses!
+                <td colspan="6" style="text-align:center; color:var(--text-muted); padding:28px;">
+                  No submissions yet. Share the candidate portal link to start collecting assessment responses!
                 </td>
               </tr>
             </tbody>
@@ -251,30 +228,58 @@
     </section>
 
     <!-- ===================================================================
-         TAB 2: QUIZ & ANTI-CHEAT SECURITY SETTINGS
+         TAB 2: SETTINGS & LOGO BRANDING
          =================================================================== -->
     <section id="tab-settings" class="admin-tab-panel hidden">
+
+      <!-- Logo & Branding Card -->
       <div class="card">
-        <h3 style="margin:0 0 6px; font-size:18px; color:#3b0764;">Quiz &amp; Mobile Anti-Cheat Configuration</h3>
-        <p class="card-subtitle">Changes apply immediately to all new quiz sessions.</p>
+        <h3 style="margin:0 0 6px; font-size:18px; color:#3b0764;">Portal &amp; Company Branding</h3>
+        <p class="card-subtitle">Change the portal logo here. The updated logo will immediately reflect on the candidate test screen and the admin console.</p>
+
+        <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center; margin-bottom:16px; padding:14px; background:#fbf9ff; border:1.5px solid rgba(91,33,182,0.18); border-radius:12px;">
+          <div style="text-align:center;">
+            <div style="font-size:12px; font-weight:800; color:#5b21b6; margin-bottom:6px;">Current Active Logo</div>
+            <img id="admin-logo-preview" src="/assets/uts-logo.png" alt="Active Logo" style="max-height:75px; max-width:200px; object-fit:contain; border:1.5px solid #d97706; border-radius:10px; background:#fff; padding:6px; box-shadow:0 4px 12px rgba(0,0,0,0.08);" />
+          </div>
+
+          <div style="flex:1; min-width:240px; display:flex; flex-direction:column; gap:10px;">
+            <div class="field">
+              <label for="logo-file-input">Upload New Logo (PNG, JPG, SVG, WebP)</label>
+              <input type="file" id="logo-file-input" accept="image/*" style="padding:8px 10px;" />
+            </div>
+
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" id="btn-reset-default-logo" class="btn btn-secondary btn-sm">
+                ↺ Restore Default UTS Logo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assessment & Security Rules Form -->
+      <div class="card">
+        <h3 style="margin:0 0 6px; font-size:18px; color:#3b0764;">Assessment &amp; Anti-Cheat Security Configuration</h3>
+        <p class="card-subtitle">Changes apply immediately to all new assessment attempts.</p>
 
         <form id="settings-form">
           <div class="form-grid two-col">
             <div class="field">
-              <label for="cfg-quiz-title">Quiz Assessment Title</label>
+              <label for="cfg-quiz-title">Assessment Title</label>
               <input type="text" id="cfg-quiz-title" required />
             </div>
             <div class="field">
-              <label for="cfg-workshop-name">Workshop Name (Printed on CAMS Certificate)</label>
-              <input type="text" id="cfg-workshop-name" required />
+              <label for="cfg-conducted-by">Company / Organization</label>
+              <input type="text" id="cfg-conducted-by" required />
             </div>
             <div class="field">
-              <label for="cfg-duration">Quiz Time Limit (Minutes)</label>
+              <label for="cfg-duration">Assessment Time Limit (Minutes)</label>
               <input type="number" id="cfg-duration" min="5" max="180" required />
             </div>
             <div class="field">
-              <label for="cfg-hall-pin">Optional Workshop Hall PIN (Leave blank for open)</label>
-              <input type="text" id="cfg-hall-pin" placeholder="e.g. EMBEDX26" />
+              <label for="cfg-hall-pin">Optional Access PIN (Leave blank for open drive)</label>
+              <input type="text" id="cfg-hall-pin" placeholder="e.g. UTS2026" />
             </div>
             <div class="field">
               <label for="cfg-max-warnings">Max Security Warnings Allowed</label>
@@ -284,25 +289,13 @@
             <div class="field">
               <label for="cfg-grace-sec">Return Countdown Per Warning (Seconds)</label>
               <input type="number" id="cfg-grace-sec" min="5" max="60" required />
-              <span class="field-hint">Default: 20 seconds wall-clock timer to come back or auto-submit.</span>
-            </div>
-            <div class="field">
-              <label for="cfg-cert-mode">Certificate Issuance Rule</label>
-              <select id="cfg-cert-mode">
-                <option value="all_completions">Auto-send to ALL Quiz Completions</option>
-                <option value="min_score">Auto-send ONLY if Score ≥ Minimum %</option>
-                <option value="manual_only">Manual Admin Approval Only</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="cfg-min-score">Minimum Passing Score % (When Min Score rule selected)</label>
-              <input type="number" id="cfg-min-score" min="0" max="100" />
+              <span class="field-hint">Default: 20 seconds timer to return or auto-submit.</span>
             </div>
           </div>
 
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:10px; margin-top:18px;">
             <label class="switch-row">
-              <span><strong>Shuffle Question Order</strong><br><small style="color:var(--text-muted);">Unique sequence per student</small></span>
+              <span><strong>Shuffle Question Order</strong><br><small style="color:var(--text-muted);">Unique question sequence per candidate</small></span>
               <input type="checkbox" id="cfg-shuffle-q" />
             </label>
             <label class="switch-row">
@@ -310,7 +303,7 @@
               <input type="checkbox" id="cfg-shuffle-opt" />
             </label>
             <label class="switch-row">
-              <span><strong>Require Fullscreen Lock</strong><br><small style="color:var(--text-muted);">Exiting fullscreen triggers warning</small></span>
+              <span><strong>Require Fullscreen Lock</strong><br><small style="color:var(--text-muted);">Exiting fullscreen triggers security warning</small></span>
               <input type="checkbox" id="cfg-fullscreen" />
             </label>
             <label class="switch-row">
@@ -318,135 +311,52 @@
               <input type="checkbox" id="cfg-canvas-shield" />
             </label>
             <label class="switch-row">
-              <span><strong>Student RegNo Watermark</strong><br><small style="color:var(--text-muted);">Diagonal watermark across question card</small></span>
+              <span><strong>Candidate ID Watermark</strong><br><small style="color:var(--text-muted);">Diagonal watermark across question card</small></span>
               <input type="checkbox" id="cfg-watermark" />
             </label>
           </div>
 
           <button type="submit" class="btn btn-primary" style="margin-top:20px;">
-            Save Quiz &amp; Security Configuration
+            Save Assessment Configuration
           </button>
         </form>
       </div>
     </section>
 
     <!-- ===================================================================
-         TAB 3: QUESTION BANK MANAGER (ALL 30 EMBEDX QUESTIONS)
+         TAB 3: QUESTION BANK MANAGER (WITH JSON UPLOAD & DOWNLOAD)
          =================================================================== -->
     <section id="tab-questions" class="admin-tab-panel hidden">
       <div class="card">
         <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center; margin-bottom:16px;">
           <div>
-            <h3 style="margin:0; font-size:18px; color:#3b0764;">EMBEDX Workshop Question Bank (<span id="qbank-count">30</span>)</h3>
+            <h3 style="margin:0; font-size:18px; color:#3b0764;">Assessment Question Bank (<span id="qbank-count">30</span>)</h3>
             <p style="margin:3px 0 0; font-size:13px; color:var(--text-muted);">
-              Loaded from <code>EMBEDX_30_Question_Workshop_Quiz_with_Answers.pdf</code>
+              Uploaded questions are saved directly to Cloud Firestore and instantly served to candidates.
             </p>
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button type="button" id="btn-add-question" class="btn btn-primary btn-sm">+ Add Question</button>
-            <button type="button" id="btn-reset-questions" class="btn btn-secondary btn-sm">↺ Restore Default 30 PDF Questions</button>
+            <!-- Upload JSON Button -->
+            <input type="file" id="json-upload-input" accept=".json" class="hidden" />
+            <button type="button" id="btn-upload-json" class="btn btn-gold btn-sm">
+              ⬆ Upload Questions JSON
+            </button>
+            <button type="button" id="btn-download-json-template" class="btn btn-secondary btn-sm">
+              ⬇ Download JSON Template
+            </button>
+            <button type="button" id="btn-export-json" class="btn btn-secondary btn-sm">
+              ⬇ Export Current Questions (JSON)
+            </button>
+            <button type="button" id="btn-add-question" class="btn btn-primary btn-sm">
+              + Add Question
+            </button>
+            <button type="button" id="btn-reset-questions" class="btn btn-secondary btn-sm">
+              ↺ Reset to Default Sample Questions
+            </button>
           </div>
         </div>
 
         <div id="questions-admin-list" style="display:flex; flex-direction:column; gap:12px;"></div>
-      </div>
-    </section>
-
-    <!-- ===================================================================
-         TAB 4: CAMS CERTIFICATE SYSTEM + FIREBASE CLOUD CONFIG
-         =================================================================== -->
-    <section id="tab-cams" class="admin-tab-panel hidden">
-      <div class="card">
-        <div class="hero-chip">CAMS Google Workspace Integration</div>
-        <h3 style="margin:0 0 6px; font-size:18px; color:#3b0764;">Certificate Automation Management System (CAMS)</h3>
-        <p class="card-subtitle">
-          Pre-wired to your SRM TRP Engineering College Google Sheet (<code>1jiVDFpIxGwfSlHBt3vaHl-5GFd8DPGapSS4tsR-FhJQ</code>) &amp; Verification Web App.
-        </p>
-
-        <form id="cams-config-form">
-          <label class="switch-row" style="margin-bottom: 14px;">
-            <span><strong>Enable Automatic CAMS Certificate Trigger</strong><br><small style="color:var(--text-muted);">Calls your Google Apps Script Web App upon quiz submission</small></span>
-            <input type="checkbox" id="cams-enabled" />
-          </label>
-
-          <div class="form-grid two-col">
-            <div class="field">
-              <label for="cams-webhook-url">CAMS Apps Script Webhook URL (Backend PDF + Email Worker)</label>
-              <input type="url" id="cams-webhook-url" required />
-            </div>
-            <div class="field">
-              <label for="cams-verify-url">Direct Firebase QR Verification URL (<code>/verify</code> — No Redirect)</label>
-              <input type="url" id="cams-verify-url" required />
-            </div>
-            <div class="field">
-              <label for="cams-secret">Shared Webhook Secret Key</label>
-              <input type="text" id="cams-secret" required />
-            </div>
-            <div class="field">
-              <label for="cams-duration">Course Duration Token (<code>{{DURATION}}</code>)</label>
-              <input type="text" id="cams-duration" placeholder="e.g. 1 Day" />
-            </div>
-            <div class="field">
-              <label for="cams-conducted-by">Conducted By</label>
-              <input type="text" id="cams-conducted-by" />
-            </div>
-          </div>
-
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
-            <button type="submit" class="btn btn-primary btn-sm">Save CAMS Settings</button>
-            <button type="button" id="btn-test-cams" class="btn btn-gold btn-sm">⚡ Test CAMS Webhook Connection</button>
-          </div>
-          <div id="cams-ping-result" class="alert alert-info hidden" style="margin-top:12px;"></div>
-        </form>
-
-        <hr style="border:0; border-top:1px solid rgba(91,33,182,0.14); margin:22px 0;" />
-
-        <h4 style="margin:0 0 8px; font-size:15px; color:#3b0764;">
-          Updated CAMS Apps Script Files (Direct Firebase QR + Cloud Verification Sync)
-        </h4>
-        <p style="margin:0 0 12px; font-size:13px; color:var(--text-secondary);">
-          Open your CAMS Google Form → <strong>⋮ → Script editor</strong>, replace <strong><code>QRManager.gs</code></strong>, <strong><code>Verification.gs</code></strong>, and <strong><code>Certificate.gs</code></strong>, add/replace <strong><code>QuizWebhook.gs</code></strong>, then click <strong>Deploy → Manage deployments → Edit → Version: New version → Deploy</strong>.
-        </p>
-        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
-          <div style="display:flex; gap:6px; flex-wrap:wrap;" id="gs-file-tabs">
-            <button type="button" class="btn btn-primary btn-sm gs-tab-btn" data-gsfile="QRManager.gs">1. QRManager.gs</button>
-            <button type="button" class="btn btn-secondary btn-sm gs-tab-btn" data-gsfile="Verification.gs">2. Verification.gs</button>
-            <button type="button" class="btn btn-secondary btn-sm gs-tab-btn" data-gsfile="Certificate.gs">3. Certificate.gs</button>
-            <button type="button" class="btn btn-secondary btn-sm gs-tab-btn" data-gsfile="QuizWebhook.gs">4. QuizWebhook.gs</button>
-          </div>
-          <button type="button" id="btn-copy-webhook-gs" class="btn btn-gold btn-sm">Copy QRManager.gs</button>
-        </div>
-        <pre id="webhook-gs-preview" class="code-block">Loading Apps Script file...</pre>
-      </div>
-
-      <!-- Firebase Cloud Live Config Card -->
-      <div class="card">
-        <div class="hero-chip">Firebase Cloud Database &amp; Auth</div>
-        <h3 style="margin:0 0 6px; font-size:18px; color:#3b0764;">Firebase Live Connection</h3>
-        <p class="card-subtitle">
-          Paste your <code>firebaseConfig</code> JSON object from Firebase Console → Project Settings → Web App to activate multi-device Cloud Firestore &amp; Firebase Auth immediately.
-        </p>
-
-        <div class="field">
-          <label for="firebase-json-input">Firebase Config JSON (<code>{ "apiKey": "...", "projectId": "..." }</code>)</label>
-          <textarea id="firebase-json-input" rows="7" style="font-family:monospace; font-size:13px;" placeholder='{
-  "apiKey": "AIzaSy...",
-  "authDomain": "your-project.firebaseapp.com",
-  "projectId": "your-project",
-  "storageBucket": "your-project.firebasestorage.app",
-  "messagingSenderId": "...",
-  "appId": "..."
-}'></textarea>
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-          <button type="button" id="btn-save-firebase-cfg" class="btn btn-gold btn-sm">
-            Connect Firebase Config
-          </button>
-          <button type="button" id="btn-clear-firebase-cfg" class="btn btn-secondary btn-sm">
-            Clear Override (Use File Default)
-          </button>
-        </div>
       </div>
     </section>
 
@@ -458,7 +368,7 @@
   <div id="detail-modal" class="modal-overlay hidden">
     <div class="modal-box">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <h3 id="detail-modal-title" style="margin:0; font-size:18px; color:#3b0764;">Submission Details</h3>
+        <h3 id="detail-modal-title" style="margin:0; font-size:18px; color:#3b0764;">Candidate Details</h3>
         <button type="button" id="btn-close-detail-modal" class="btn btn-secondary btn-sm">Close ✕</button>
       </div>
       <div id="detail-modal-body"></div>
@@ -476,7 +386,7 @@
         <div class="form-grid">
           <div class="field">
             <label>Category / Topic</label>
-            <input type="text" id="qedit-category" placeholder="e.g. ESP32" required />
+            <input type="text" id="qedit-category" placeholder="e.g. Core Engineering" required />
           </div>
           <div class="field">
             <label>Question Type</label>
@@ -495,7 +405,7 @@
             <select id="qedit-correct"></select>
           </div>
           <div class="field">
-            <label>Explanation (Facilitator / Review Reference)</label>
+            <label>Explanation (Optional Reference)</label>
             <textarea id="qedit-explanation" rows="2"></textarea>
           </div>
         </div>

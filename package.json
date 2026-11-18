@@ -1,9 +1,9 @@
 {
-  "name": "embedx-workshop-quiz-portal",
+  "name": "unistring-tech-solution-assessment",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Mobile-first proctored quiz & CAMS certificate automation portal for EMBEDX Club, SRM TRP Engineering College",
+  "description": "Mobile-first proctored assessment portal for Unistring Tech Solution placement drives",
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",

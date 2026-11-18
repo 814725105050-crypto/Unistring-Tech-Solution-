@@ -387,11 +387,15 @@ async function tryRestoreActiveAttempt() {
   candidate = saved.candidate;
   attemptState = saved;
 
-  const existing = await checkExistingSubmission(candidate.email, candidate.registerNumber);
-  if (existing) {
-    clearAttemptLocal();
-    renderResultScreen(existing, true);
-    return;
+  try {
+    const existing = await checkExistingSubmission(candidate.email, candidate.registerNumber);
+    if (existing) {
+      clearAttemptLocal();
+      renderResultScreen(existing, true);
+      return;
+    }
+  } catch (err) {
+    console.warn('Submission check fallback during restore:', err);
   }
 
   if (Date.now() >= attemptState.deadlineAt) {

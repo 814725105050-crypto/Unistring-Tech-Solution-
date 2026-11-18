@@ -936,7 +936,7 @@ function renderCurrentQuestion() {
   const nextBtn = document.getElementById('btn-next-q');
   if (idx === total - 1) {
     nextBtn.textContent = 'Finish & Submit ✓';
-    nextBtn.className = 'btn btn-gold';
+    nextBtn.className = 'btn btn-primary';
   } else {
     nextBtn.textContent = 'Next →';
     nextBtn.className = 'btn btn-primary';

@@ -482,7 +482,7 @@ function populateSettingsForms() {
   const openBtn = document.getElementById('btn-quick-toggle-quiz');
   if (settings.quizOpen) {
     openBtn.textContent = '● Assessment Status: OPEN';
-    openBtn.className = 'btn btn-gold btn-sm';
+    openBtn.className = 'btn btn-primary btn-sm';
   } else {
     openBtn.textContent = '⏸ Assessment Status: PAUSED';
     openBtn.className = 'btn btn-danger btn-sm';
@@ -503,12 +503,12 @@ function populateSettingsForms() {
 
   if (slot1Btn) {
     slot1Btn.className = activeSlot === 1
-      ? (slot1Open ? 'btn btn-gold btn-sm' : 'btn btn-danger btn-sm')
+      ? (slot1Open ? 'btn btn-primary btn-sm' : 'btn btn-danger btn-sm')
       : 'btn btn-secondary btn-sm';
   }
   if (slot2Btn) {
     slot2Btn.className = activeSlot === 2
-      ? (slot2Open ? 'btn btn-gold btn-sm' : 'btn btn-danger btn-sm')
+      ? (slot2Open ? 'btn btn-primary btn-sm' : 'btn btn-danger btn-sm')
       : 'btn btn-secondary btn-sm';
   }
 
@@ -784,8 +784,8 @@ async function refreshQuestionsSlotView() {
 
   const slot1TabBtn = document.getElementById('btn-tab-slot-1');
   const slot2TabBtn = document.getElementById('btn-tab-slot-2');
-  if (slot1TabBtn) slot1TabBtn.className = currentManagingSlot === 1 ? 'btn btn-gold btn-sm' : 'btn btn-secondary btn-sm';
-  if (slot2TabBtn) slot2TabBtn.className = currentManagingSlot === 2 ? 'btn btn-gold btn-sm' : 'btn btn-secondary btn-sm';
+  if (slot1TabBtn) slot1TabBtn.className = currentManagingSlot === 1 ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  if (slot2TabBtn) slot2TabBtn.className = currentManagingSlot === 2 ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
 
   const titleEl = document.getElementById('current-managing-slot-title');
   if (titleEl) titleEl.textContent = `Slot ${currentManagingSlot}`;

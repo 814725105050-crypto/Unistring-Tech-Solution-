@@ -882,10 +882,19 @@ function renderResultScreen(record, isReturningLookup) {
   showScreen('result');
 
   document.getElementById('result-mode-chip').textContent = isReturningLookup
-    ? 'Already Submitted'
+    ? 'Verified Submission'
     : record.isAutoSubmitted
-    ? 'Auto-Submitted'
-    : 'Assessment Completed';
+    ? 'Auto-Submitted & Recorded'
+    : 'Successfully Recorded';
+
+  const headingEl = document.getElementById('result-heading');
+  if (headingEl) {
+    headingEl.textContent = isReturningLookup
+      ? 'Your Assessment Has Been Verified & Recorded'
+      : record.isAutoSubmitted
+      ? 'Assessment Session Closed & Response Recorded'
+      : 'Your Assessment Has Been Successfully Recorded';
+  }
 
   document.getElementById('result-candidate-line').textContent = `${record.fullName} · ${
     record.registerNumber

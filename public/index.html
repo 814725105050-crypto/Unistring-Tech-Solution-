@@ -10,9 +10,24 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="referrer" content="no-referrer" />
   <title>Unistring Tech Solution · Placement Drive Assessment</title>
+  <link rel="preload" as="image" href="/assets/uts-logo.png" />
   <link rel="icon" type="image/png" href="/assets/uts-logo.png" />
   <link rel="apple-touch-icon" href="/assets/uts-logo.png" />
   <link rel="stylesheet" href="/css/styles.css" />
+  <script>
+    // Inline instant logo & branding pre-cache to prevent any flicker or refresh delay
+    (function() {
+      try {
+        var raw = localStorage.getItem('uts_portal_settings_v1');
+        if (raw) {
+          var s = JSON.parse(raw);
+          if (s && s.logoUrl) {
+            window.__UTS_PRELOADED_LOGO__ = s.logoUrl;
+          }
+        }
+      } catch(e) {}
+    })();
+  </script>
 </head>
 
 <body>
@@ -57,7 +72,7 @@
     <header id="portal-brand-header" class="brand-bar">
       <div class="brand-id">
         <div class="brand-emblem">
-          <img id="portal-header-logo" src="/assets/uts-logo.png" alt="Unistring Tech Solution Logo" />
+          <img id="portal-header-logo" src="/assets/uts-logo.png" alt="Unistring Tech Solution Logo" onload="if(window.__UTS_PRELOADED_LOGO__ && this.src !== window.__UTS_PRELOADED_LOGO__) this.src = window.__UTS_PRELOADED_LOGO__;" />
         </div>
         <div class="brand-titles">
           <h1 id="header-club-name">Unistring Tech Solution</h1>
@@ -72,7 +87,7 @@
     <section id="screen-register">
       <div class="card glass3d">
         <div class="club-logo-showcase">
-          <img id="landing-showcase-logo" src="/assets/uts-logo.png" alt="Unistring Tech Solution" />
+          <img id="landing-showcase-logo" src="/assets/uts-logo.png" alt="Unistring Tech Solution" onload="if(window.__UTS_PRELOADED_LOGO__ && this.src !== window.__UTS_PRELOADED_LOGO__) this.src = window.__UTS_PRELOADED_LOGO__;" />
         </div>
 
         <div style="text-align: center;">

@@ -185,11 +185,15 @@ function applySettingsToLandingUI() {
   const slotCheck = isSlotUnlockedNow(currentSlot, settings);
   const isOverallOpen = settings.quizOpen !== false && slotCheck.unlocked;
 
-  const activeLogo = settings.logoUrl || '/assets/uts-logo.png';
+  const activeLogo = settings.logoUrl || window.__UTS_PRELOADED_LOGO__ || '/assets/uts-logo.png';
   const headerLogo = document.getElementById('portal-header-logo');
-  if (headerLogo) headerLogo.src = activeLogo;
+  if (headerLogo && headerLogo.src !== activeLogo && !headerLogo.src.endsWith(activeLogo)) {
+    headerLogo.src = activeLogo;
+  }
   const showcaseLogo = document.getElementById('landing-showcase-logo');
-  if (showcaseLogo) showcaseLogo.src = activeLogo;
+  if (showcaseLogo && showcaseLogo.src !== activeLogo && !showcaseLogo.src.endsWith(activeLogo)) {
+    showcaseLogo.src = activeLogo;
+  }
 
   document.getElementById('landing-quiz-title').textContent =
     settings.quizTitle || `Placement Drive Assessment · Slot ${currentSlot}`;

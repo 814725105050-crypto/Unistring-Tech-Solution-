@@ -151,13 +151,26 @@
          =================================================================== -->
     <section id="tab-submissions" class="admin-tab-panel">
 
-      <!-- Quick Live Controls -->
+      <!-- Quick Live Controls & Slot Controls -->
       <div class="card" style="padding: 16px 18px;">
         <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:center; justify-content:space-between;">
           <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <!-- Overall Status Toggle -->
             <button type="button" id="btn-quick-toggle-quiz" class="btn btn-gold btn-sm">
-              ● Assessment Status: OPEN
+              ● Assessment: OPEN
             </button>
+
+            <!-- Slot Selector & Quick Toggles -->
+            <div style="display:flex; align-items:center; gap:8px; padding:4px 10px; background:#fbf9ff; border:1.5px solid rgba(91,33,182,0.22); border-radius:10px;">
+              <span style="font-weight:700; color:#3b0764; font-size:13px;">Active Slot:</span>
+              <button type="button" id="btn-select-slot-1" class="btn btn-gold btn-sm" style="padding:4px 10px; font-size:12px;">
+                Slot 1 (<span id="slot1-state-label">ON</span>)
+              </button>
+              <button type="button" id="btn-select-slot-2" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:12px;">
+                Slot 2 (<span id="slot2-state-label">OFF</span>)
+              </button>
+            </div>
+
             <div style="display:flex; align-items:center; gap:8px; font-size:13px;">
               <span style="color:var(--text-secondary); font-weight:600;">Student Result View:</span>
               <select id="quick-result-visibility" style="padding:7px 11px; border-radius:8px; background:#fff; color:#1e1035; border:1.5px solid rgba(91,33,182,0.22); font-size:13px; font-weight:600;">
@@ -324,34 +337,52 @@
     </section>
 
     <!-- ===================================================================
-         TAB 3: QUESTION BANK MANAGER (WITH JSON UPLOAD & DOWNLOAD)
+         TAB 3: QUESTION BANK MANAGER (SLOT 1 & SLOT 2 UPLOAD & MANAGEMENT)
          =================================================================== -->
     <section id="tab-questions" class="admin-tab-panel hidden">
       <div class="card">
+        <!-- Slot Switcher for Question Bank -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; padding-bottom:14px; border-bottom:1.5px solid rgba(91,33,182,0.15);">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span style="font-weight:800; color:#3b0764; font-size:15px;">Managing Bank:</span>
+            <button type="button" id="btn-tab-slot-1" class="btn btn-gold btn-sm" style="font-size:13px; font-weight:700;">
+              Slot 1 Questions (<span id="slot1-count">0</span>)
+            </button>
+            <button type="button" id="btn-tab-slot-2" class="btn btn-secondary btn-sm" style="font-size:13px; font-weight:700;">
+              Slot 2 Questions (<span id="slot2-count">0</span>)
+            </button>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span id="active-slot-badge" class="hero-chip" style="margin:0; font-size:12px;">Slot 1 Active for Students</span>
+          </div>
+        </div>
+
         <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center; margin-bottom:16px;">
           <div>
-            <h3 style="margin:0; font-size:18px; color:#3b0764;">Assessment Question Bank (<span id="qbank-count">30</span>)</h3>
+            <h3 style="margin:0; font-size:18px; color:#3b0764;">
+              <span id="current-managing-slot-title">Slot 1</span> Question Bank (<span id="qbank-count">0</span>)
+            </h3>
             <p style="margin:3px 0 0; font-size:13px; color:var(--text-muted);">
-              Uploaded questions are saved directly to Cloud Firestore and instantly served to candidates.
+              Uploaded questions are saved directly to Cloud Firestore for this slot. Recommended: 50 questions per slot.
             </p>
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <!-- Upload JSON Button -->
             <input type="file" id="json-upload-input" accept=".json" class="hidden" />
             <button type="button" id="btn-upload-json" class="btn btn-gold btn-sm">
-              ⬆ Upload Questions JSON
+              ⬆ Upload <span class="slot-name-btn-lbl">Slot 1</span> JSON (50 Questions)
             </button>
             <button type="button" id="btn-download-json-template" class="btn btn-secondary btn-sm">
-              ⬇ Download JSON Template
+              ⬇ Download 50Q Template
             </button>
             <button type="button" id="btn-export-json" class="btn btn-secondary btn-sm">
-              ⬇ Export Current Questions (JSON)
+              ⬇ Export <span class="slot-name-btn-lbl">Slot 1</span> (JSON)
             </button>
             <button type="button" id="btn-add-question" class="btn btn-primary btn-sm">
               + Add Question
             </button>
-            <button type="button" id="btn-reset-questions" class="btn btn-secondary btn-sm">
-              ↺ Reset to Default Sample Questions
+            <button type="button" id="btn-reset-questions" class="btn btn-danger btn-sm">
+              ✕ Clear Questions
             </button>
           </div>
         </div>

@@ -15,6 +15,8 @@ import { DEFAULT_QUESTIONS } from './questions-data.js';
 const STORAGE_KEYS = {
   SETTINGS: 'uts_portal_settings_v1',
   QUESTIONS: 'uts_questions_bank_v1',
+  QUESTIONS_SLOT1: 'uts_questions_slot1_v1',
+  QUESTIONS_SLOT2: 'uts_questions_slot2_v1',
   SUBMISSIONS: 'uts_submissions_v1',
   CERTIFICATES: 'uts_certificates_v1',
   ACTIVE_SESSIONS: 'uts_live_sessions_v1',
@@ -240,50 +242,117 @@ export async function savePortalSettings(partialSettings) {
   return updated;
 }
 
+export async function subscribeToPortalSettings(onSettings) {
+  const ctx = await initBackend();
+  let unsub = () => {};
+
+  if (ctx.mode === 'firebase') {
+    try {
+      const { doc, onSnapshot } = ctx.fsMod;
+      unsub = onSnapshot(doc(ctx.db, 'portal_config', 'main'), (snap) => {
+        if (snap.exists()) {
+          const merged = sanitizeVerifySetting({ ...DEFAULT_PORTAL_SETTINGS, ...snap.data() });
+          localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(merged));
+          onSettings(merged);
+        }
+      });
+    } catch (_) {}
+  }
+
+  const onStorage = (e) => {
+    if (e.key === STORAGE_KEYS.SETTINGS) {
+      onSettings(getLocalSettings());
+    }
+  };
+  window.addEventListener('storage', onStorage);
+
+  let onMsg = null;
+  if (broadcast) {
+    onMsg = (e) => {
+      if (e.data?.topic === 'settings') {
+        onSettings(getLocalSettings());
+      }
+    };
+    broadcast.addEventListener('message', onMsg);
+  }
+
+  return () => {
+    unsub();
+    window.removeEventListener('storage', onStorage);
+    if (broadcast && onMsg) broadcast.removeEventListener('message', onMsg);
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Question Bank                                                              */
 /* -------------------------------------------------------------------------- */
 
-function getLocalQuestions() {
+function getLocalQuestions(slot = 1) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.QUESTIONS);
+    const key = slot === 2 ? STORAGE_KEYS.QUESTIONS_SLOT2 : STORAGE_KEYS.QUESTIONS_SLOT1;
+    const raw = localStorage.getItem(key) || (slot === 1 ? localStorage.getItem(STORAGE_KEYS.QUESTIONS) : null);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch (_) {}
-  return DEFAULT_QUESTIONS.map((q) => ({ ...q, options: [...q.options] }));
+  return [];
 }
 
-export async function loadQuestions() {
+export async function loadQuestions(slot = null) {
+  if (slot === null) {
+    const s = await loadPortalSettings();
+    slot = Number(s.activeSlot || 1);
+  }
+  const slotDocId = slot === 2 ? 'questions_slot2' : 'questions_slot1';
+  const localKey = slot === 2 ? STORAGE_KEYS.QUESTIONS_SLOT2 : STORAGE_KEYS.QUESTIONS_SLOT1;
+
   const ctx = await initBackend();
   if (ctx.mode === 'firebase' && firestoreCloudHealthy) {
     try {
       const { doc, getDoc } = ctx.fsMod;
-      const snap = await getDoc(doc(ctx.db, 'portal_config', 'questions'));
+      let snap = await getDoc(doc(ctx.db, 'portal_config', slotDocId));
+      if (!snap.exists() && slot === 1) {
+        // Fallback to legacy single questions doc
+        snap = await getDoc(doc(ctx.db, 'portal_config', 'questions'));
+      }
       if (snap.exists() && Array.isArray(snap.data().items) && snap.data().items.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(snap.data().items));
+        localStorage.setItem(localKey, JSON.stringify(snap.data().items));
         return snap.data().items;
       }
     } catch (err) {
       firestoreCloudHealthy = false;
     }
   }
-  return getLocalQuestions();
+  return getLocalQuestions(slot);
 }
 
-export async function saveQuestions(questionsArray) {
-  localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(questionsArray));
+export async function saveQuestions(questionsArray, slot = 1) {
+  const slotNum = Number(slot || 1);
+  const slotDocId = slotNum === 2 ? 'questions_slot2' : 'questions_slot1';
+  const localKey = slotNum === 2 ? STORAGE_KEYS.QUESTIONS_SLOT2 : STORAGE_KEYS.QUESTIONS_SLOT1;
+
+  localStorage.setItem(localKey, JSON.stringify(questionsArray));
+  if (slotNum === 1) {
+    localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(questionsArray));
+  }
   notifyLocalChange('questions');
 
   const ctx = await initBackend();
   if (ctx.mode === 'firebase') {
     try {
       const { doc, setDoc } = ctx.fsMod;
-      await setDoc(doc(ctx.db, 'portal_config', 'questions'), {
+      await setDoc(doc(ctx.db, 'portal_config', slotDocId), {
+        slot: slotNum,
         items: questionsArray,
         updatedAt: new Date().toISOString()
       });
+      if (slotNum === 1) {
+        await setDoc(doc(ctx.db, 'portal_config', 'questions'), {
+          items: questionsArray,
+          updatedAt: new Date().toISOString()
+        }).catch(() => {});
+      }
       firestoreCloudHealthy = true;
     } catch (err) {
       firestoreCloudHealthy = false;
@@ -292,23 +361,29 @@ export async function saveQuestions(questionsArray) {
   return questionsArray;
 }
 
-export async function resetQuestionsToDefault() {
-  const fresh = DEFAULT_QUESTIONS.map((q) => ({ ...q, options: [...q.options] }));
-  return saveQuestions(fresh);
+export async function resetQuestionsToDefault(slot = 1) {
+  return saveQuestions([], slot);
 }
 
 /* -------------------------------------------------------------------------- */
 /* Duplicate Attempt Check                                                    */
 /* -------------------------------------------------------------------------- */
 
-export function normalizeStudentKey(email, registerNumber) {
+export function normalizeStudentKey(email, registerNumber, slot = null) {
   const cleanEmail = String(email || '').trim().toLowerCase();
   const cleanReg = String(registerNumber || '').trim().toUpperCase().replace(/\s+/g, '');
-  return { cleanEmail, cleanReg, docId: cleanEmail.replace(/[^a-z0-9@._-]/g, '_') };
+  const slotSuffix = slot ? `_s${slot}` : '';
+  const baseDocId = cleanEmail.replace(/[^a-z0-9@._-]/g, '_');
+  return {
+    cleanEmail,
+    cleanReg,
+    docId: `${baseDocId}${slotSuffix}`,
+    regLockKey: slot ? `${cleanReg}_s${slot}` : cleanReg
+  };
 }
 
-export async function checkExistingSubmission(email, registerNumber) {
-  const { cleanEmail, cleanReg, docId } = normalizeStudentKey(email, registerNumber);
+export async function checkExistingSubmission(email, registerNumber, slot = null) {
+  const { cleanEmail, cleanReg, docId, regLockKey } = normalizeStudentKey(email, registerNumber, slot);
   const ctx = await initBackend();
 
   if (ctx.mode === 'firebase' && firestoreCloudHealthy) {
@@ -319,7 +394,7 @@ export async function checkExistingSubmission(email, registerNumber) {
         return byEmail.data();
       }
       if (cleanReg) {
-        const regSnap = await getDoc(doc(ctx.db, 'reg_locks', cleanReg));
+        const regSnap = await getDoc(doc(ctx.db, 'reg_locks', regLockKey));
         if (regSnap.exists() && regSnap.data().submissionId) {
           const linkedSub = await getDoc(doc(ctx.db, 'submissions', regSnap.data().submissionId));
           if (linkedSub.exists() && !linkedSub.data().allowRetake) {
@@ -338,6 +413,7 @@ export async function checkExistingSubmission(email, registerNumber) {
     list.find(
       (s) =>
         !s.allowRetake &&
+        (slot ? Number(s.slot || 1) === Number(slot) : true) &&
         (String(s.email || '').toLowerCase() === cleanEmail ||
           (cleanReg && String(s.registerNumberNormalized || '') === cleanReg))
     ) || null
@@ -417,14 +493,17 @@ function saveLocalSubmissions(list) {
 }
 
 export async function recordQuizSubmission(submission) {
-  const { cleanEmail, cleanReg, docId } = normalizeStudentKey(
+  const slot = submission.slot || 1;
+  const { cleanEmail, cleanReg, docId, regLockKey } = normalizeStudentKey(
     submission.email,
-    submission.registerNumber
+    submission.registerNumber,
+    slot
   );
 
   const record = {
     ...submission,
     id: docId,
+    slot,
     email: cleanEmail,
     registerNumberNormalized: cleanReg,
     allowRetake: false,
@@ -446,8 +525,9 @@ export async function recordQuizSubmission(submission) {
       await setDoc(doc(ctx.db, 'submissions', docId), record);
       firestoreCloudHealthy = true;
       if (cleanReg) {
-        await setDoc(doc(ctx.db, 'reg_locks', cleanReg), {
+        await setDoc(doc(ctx.db, 'reg_locks', regLockKey), {
           submissionId: docId,
+          slot,
           email: cleanEmail,
           createdAt: record.submittedAt
         }).catch(() => {});

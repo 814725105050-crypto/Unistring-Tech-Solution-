@@ -9,6 +9,7 @@ import {
   loadQuestions,
   recordQuizSubmission,
   removeActiveSession,
+  subscribeToPortalSettings,
   upsertActiveSession
 } from './db-service.js';
 import { renderProtectedQuestionCanvas } from './canvas-shield.js';
@@ -95,6 +96,7 @@ const screens = {
 };
 
 function showScreen(name) {
+  document.body.classList.toggle('in-exam', name === 'quiz');
   Object.entries(screens).forEach(([key, el]) => {
     if (el) el.classList.toggle('hidden', key !== name);
   });
@@ -111,15 +113,33 @@ function showScreen(name) {
 
 async function initPortal() {
   settings = await loadPortalSettings();
-  rawQuestions = await loadQuestions();
+  rawQuestions = await loadQuestions(Number(settings.activeSlot || 1));
 
   applySettingsToLandingUI();
   bindUIEvents();
+
+  // Real-time synchronization: dynamically update without requiring manual page reload!
+  subscribeToPortalSettings(async (newSettings) => {
+    const prevSlot = settings?.activeSlot;
+    const prevOpen = settings?.quizOpen;
+    settings = newSettings;
+
+    if (!attemptState) {
+      if (prevSlot !== newSettings.activeSlot) {
+        rawQuestions = await loadQuestions(Number(newSettings.activeSlot || 1));
+      }
+      applySettingsToLandingUI();
+    }
+  });
 
   await tryRestoreActiveAttempt();
 }
 
 function applySettingsToLandingUI() {
+  const currentSlot = Number(settings.activeSlot || 1);
+  const isCurrentSlotOpen = currentSlot === 2 ? settings.slot2Open !== false : settings.slot1Open !== false;
+  const isOverallOpen = settings.quizOpen !== false && isCurrentSlotOpen;
+
   const activeLogo = settings.logoUrl || '/assets/uts-logo.png';
   const headerLogo = document.getElementById('portal-header-logo');
   if (headerLogo) headerLogo.src = activeLogo;
@@ -127,11 +147,11 @@ function applySettingsToLandingUI() {
   if (showcaseLogo) showcaseLogo.src = activeLogo;
 
   document.getElementById('landing-quiz-title').textContent =
-    settings.quizTitle || 'Placement Drive Assessment';
+    settings.quizTitle || `Placement Drive Assessment · Slot ${currentSlot}`;
   document.getElementById('landing-workshop-subtitle').textContent =
-    settings.workshopName || 'Online Technical & Aptitude Assessment';
-  document.getElementById('meta-q-count').textContent = String(rawQuestions.length || 30);
-  document.getElementById('meta-duration').textContent = `${settings.durationMinutes || 30} Min`;
+    settings.workshopName || `Online Technical & Aptitude Assessment (Slot ${currentSlot})`;
+  document.getElementById('meta-q-count').textContent = String(rawQuestions.length || 50);
+  document.getElementById('meta-duration').textContent = `${settings.durationMinutes || 45} Min`;
 
   document.getElementById('brief-max-warn').textContent = String(settings.maxWarnings ?? 2);
   document.getElementById('brief-grace-sec').textContent = String(settings.returnGraceSeconds ?? 20);
@@ -146,16 +166,17 @@ function applySettingsToLandingUI() {
   const dot = document.getElementById('live-status-dot');
   const statusLabel = document.getElementById('live-status-label');
 
-  if (!settings.quizOpen) {
+  if (!isOverallOpen) {
     closedBanner.classList.remove('hidden');
+    closedBanner.innerHTML = `<strong>Assessment Currently Closed:</strong> Slot ${currentSlot} is currently closed. Please wait for the coordinator to open the slot.`;
     submitBtn.disabled = true;
     dot.style.background = '#dc2626';
-    statusLabel.textContent = 'Assessment Paused';
+    statusLabel.textContent = `Slot ${currentSlot} Paused`;
   } else {
     closedBanner.classList.add('hidden');
     submitBtn.disabled = false;
-    dot.style.background = '#d97706';
-    statusLabel.textContent = 'Placement Drive Assessment';
+    dot.style.background = '#10b981';
+    statusLabel.textContent = `Slot ${currentSlot} Assessment Active`;
   }
 }
 
@@ -181,7 +202,9 @@ function bindUIEvents() {
     showRegisterError('');
 
     settings = await loadPortalSettings();
-    if (!settings.quizOpen) {
+    const currentSlot = Number(settings.activeSlot || 1);
+    const isCurrentSlotOpen = currentSlot === 2 ? settings.slot2Open !== false : settings.slot1Open !== false;
+    if (!settings.quizOpen || !isCurrentSlotOpen) {
       applySettingsToLandingUI();
       return;
     }
@@ -214,7 +237,7 @@ function bindUIEvents() {
     try {
       if (!settings.allowDuplicateEmail) {
         try {
-          const existing = await checkExistingSubmission(email, registerNumber);
+          const existing = await checkExistingSubmission(email, registerNumber, currentSlot);
           if (existing) {
             renderResultScreen(existing, true);
             return;
@@ -229,6 +252,7 @@ function bindUIEvents() {
         email,
         registerNumber,
         phone,
+        slot: currentSlot,
         department: FIXED_DEPARTMENT,
         year,
         college: FIXED_COLLEGE
@@ -271,17 +295,24 @@ function bindUIEvents() {
     startBtn.textContent = 'Locking Screen...';
 
     try {
-      rawQuestions = await loadQuestions();
-      const durationMs = Number(settings.durationMinutes || 30) * 60 * 1000;
+      const activeSlot = candidate.slot || Number(settings.activeSlot || 1);
+      rawQuestions = await loadQuestions(activeSlot);
+      if (!rawQuestions || !rawQuestions.length) {
+        alert(`No questions found for Slot ${activeSlot}. Please contact the coordinator.`);
+        return;
+      }
+      const durationMs = Number(settings.durationMinutes || 45) * 60 * 1000;
       const now = Date.now();
 
       attemptState = {
         candidate,
+        slot: activeSlot,
         startedAt: now,
         deadlineAt: now + durationMs,
         currentIndex: 0,
         answers: {},
         flagged: {},
+        visited: { 0: true }, // Track viewed questions
         warningsUsed: 0,
         violations: [],
         warningOverlayOpen: false,
@@ -308,6 +339,8 @@ function bindUIEvents() {
   document.getElementById('btn-prev-q').addEventListener('click', () => {
     if (!attemptState || attemptState.currentIndex <= 0) return;
     attemptState.currentIndex--;
+    attemptState.visited = attemptState.visited || {};
+    attemptState.visited[attemptState.currentIndex] = true;
     persistAttemptLocal();
     renderCurrentQuestion();
   });
@@ -316,12 +349,21 @@ function bindUIEvents() {
     if (!attemptState) return;
     if (attemptState.currentIndex < preparedQuestions.length - 1) {
       attemptState.currentIndex++;
+      attemptState.visited = attemptState.visited || {};
+      attemptState.visited[attemptState.currentIndex] = true;
       persistAttemptLocal();
       renderCurrentQuestion();
     } else {
       openSubmitConfirmation();
     }
   });
+
+  const desktopSubmitBtn = document.getElementById('btn-desktop-submit');
+  if (desktopSubmitBtn) {
+    desktopSubmitBtn.addEventListener('click', () => {
+      openSubmitConfirmation();
+    });
+  }
 
   document.getElementById('btn-flag-q').addEventListener('click', () => {
     if (!attemptState) return;
@@ -546,11 +588,19 @@ function renderCurrentQuestion() {
   const q = preparedQuestions[idx];
   const total = preparedQuestions.length;
 
+  attemptState.visited = attemptState.visited || {};
+  attemptState.visited[idx] = true;
+
   const answeredCount = Object.keys(attemptState.answers).length;
   document.getElementById('answered-counter-text').textContent = `${answeredCount}/${total}`;
   document.getElementById('exam-progress-fill').style.width = `${Math.round(
     ((idx + 1) / total) * 100
   )}%`;
+
+  const slotBadge = document.getElementById('desktop-slot-indicator');
+  if (slotBadge) {
+    slotBadge.textContent = `Slot ${attemptState.slot || settings.activeSlot || 1}`;
+  }
 
   const canvas = document.getElementById('question-canvas');
   const fallbackEl = document.getElementById('question-fallback-text');
@@ -609,32 +659,89 @@ function renderCurrentQuestion() {
     nextBtn.textContent = 'Next →';
     nextBtn.className = 'btn btn-primary';
   }
+
+  // Update both mobile drawer & desktop sidebar palettes
+  renderPaletteGrid();
+  renderDesktopPaletteSidebar();
+}
+
+function getQuestionStatus(q, idx) {
+  const isAnswered = attemptState.answers[q.id] !== undefined;
+  const isFlagged = Boolean(attemptState.flagged[q.id]);
+  const isVisited = Boolean(attemptState.visited && attemptState.visited[idx]);
+
+  if (isFlagged) return 'flagged';
+  if (isAnswered) return 'answered';
+  if (isVisited) return 'not-answered';
+  return 'not-visited';
 }
 
 function renderPaletteGrid() {
   const grid = document.getElementById('palette-grid');
+  if (!grid) return;
   grid.innerHTML = '';
   preparedQuestions.forEach((q, idx) => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    const isAnswered = attemptState.answers[q.id] !== undefined;
-    const isFlagged = Boolean(attemptState.flagged[q.id]);
+    const status = getQuestionStatus(q, idx);
     const isCurrent = idx === attemptState.currentIndex;
 
-    btn.className =
-      'palette-cell' +
-      (isAnswered ? ' answered' : '') +
-      (isFlagged ? ' flagged' : '') +
-      (isCurrent ? ' current' : '');
+    btn.className = `palette-cell ${status}${isCurrent ? ' current' : ''}`;
     btn.textContent = String(idx + 1);
     btn.addEventListener('click', () => {
       attemptState.currentIndex = idx;
+      attemptState.visited = attemptState.visited || {};
+      attemptState.visited[idx] = true;
       persistAttemptLocal();
       document.getElementById('palette-drawer').classList.add('hidden');
       renderCurrentQuestion();
     });
     grid.appendChild(btn);
   });
+}
+
+function renderDesktopPaletteSidebar() {
+  const grid = document.getElementById('desktop-palette-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  let countAnswered = 0;
+  let countNotAnswered = 0;
+  let countFlagged = 0;
+  let countNotVisited = 0;
+
+  preparedQuestions.forEach((q, idx) => {
+    const status = getQuestionStatus(q, idx);
+    if (status === 'answered') countAnswered++;
+    else if (status === 'not-answered') countNotAnswered++;
+    else if (status === 'flagged') countFlagged++;
+    else countNotVisited++;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const isCurrent = idx === attemptState.currentIndex;
+    btn.className = `palette-cell ${status}${isCurrent ? ' current' : ''}`;
+    btn.textContent = String(idx + 1);
+    btn.title = `Question ${idx + 1}: ${status.replace('-', ' ').toUpperCase()}`;
+
+    btn.addEventListener('click', () => {
+      attemptState.currentIndex = idx;
+      attemptState.visited = attemptState.visited || {};
+      attemptState.visited[idx] = true;
+      persistAttemptLocal();
+      renderCurrentQuestion();
+    });
+    grid.appendChild(btn);
+  });
+
+  const elA = document.getElementById('leg-count-answered');
+  if (elA) elA.textContent = String(countAnswered);
+  const elNA = document.getElementById('leg-count-not-answered');
+  if (elNA) elNA.textContent = String(countNotAnswered);
+  const elF = document.getElementById('leg-count-flagged');
+  if (elF) elF.textContent = String(countFlagged);
+  const elNV = document.getElementById('leg-count-not-visited');
+  if (elNV) elNV.textContent = String(countNotVisited);
 }
 
 function openSubmitConfirmation() {
@@ -687,6 +794,7 @@ async function finalizeQuizSubmission(submitReason = 'Manual Submit', isAutoSubm
     email: candidate.email,
     registerNumber: candidate.registerNumber,
     phone: candidate.phone,
+    slot: candidate.slot || attemptState.slot || Number(settings.activeSlot || 1),
     department: FIXED_DEPARTMENT,
     year: candidate.year,
     college: FIXED_COLLEGE,

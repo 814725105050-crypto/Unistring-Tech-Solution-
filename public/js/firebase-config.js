@@ -59,6 +59,9 @@ export const ADMIN_ACCESS = Object.freeze({
  */
 export const DEFAULT_PORTAL_SETTINGS = {
   quizOpen: true,
+  activeSlot: 1, // 1 | 2
+  slot1Open: true,
+  slot2Open: false,
   quizTitle: 'Placement Drive Assessment',
   workshopName: 'Unistring Placement Assessment',
   courseDuration: 'Placement Drive',

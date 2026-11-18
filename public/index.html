@@ -254,29 +254,56 @@
         </div>
       </div>
 
-      <!-- Canvas-Protected Question Display (Anti Circle-to-Search / Anti-Copy) -->
-      <div class="question-canvas-wrap">
-        <canvas id="question-canvas" aria-label="Assessment Question"></canvas>
-        <div id="question-fallback-text" class="card hidden"
-          style="font-size: 17px; font-weight: 700; margin-bottom: 0; color: #1e1035;"></div>
-      </div>
+      <!-- Question Display & Desktop Sidebar Layout -->
+      <div class="exam-layout-wrapper">
+        <div class="exam-main-pane">
+          <!-- Canvas-Protected Question Display (Anti Circle-to-Search / Anti-Copy) -->
+          <div class="question-canvas-wrap">
+            <canvas id="question-canvas" aria-label="Assessment Question"></canvas>
+            <div id="question-fallback-text" class="card hidden"
+              style="font-size: 17px; font-weight: 700; margin-bottom: 0; color: #1e1035;"></div>
+          </div>
 
-      <!-- Touch-Friendly Options -->
-      <div id="options-container" class="options-stack"></div>
+          <!-- Touch-Friendly Options -->
+          <div id="options-container" class="options-stack"></div>
 
-      <!-- Sticky Mobile Thumb Bar -->
-      <div class="exam-bottom-bar">
-        <div class="exam-bottom-inner">
-          <button type="button" id="btn-prev-q" class="btn btn-secondary">
-            ← Prev
-          </button>
-          <button type="button" id="btn-flag-q" class="btn btn-secondary" title="Mark for Review">
-            ⚑ Review
-          </button>
-          <button type="button" id="btn-next-q" class="btn btn-primary">
-            Next →
-          </button>
+          <!-- Sticky Mobile Thumb Bar / Desktop Action Bar -->
+          <div class="exam-bottom-bar">
+            <div class="exam-bottom-inner">
+              <button type="button" id="btn-prev-q" class="btn btn-secondary">
+                ← Prev
+              </button>
+              <button type="button" id="btn-flag-q" class="btn btn-secondary" title="Mark for Review">
+                ⚑ Review
+              </button>
+              <button type="button" id="btn-next-q" class="btn btn-primary">
+                Next →
+              </button>
+            </div>
+          </div>
         </div>
+
+        <!-- Desktop Right Sidebar Palette & Status Legend -->
+        <aside class="desktop-palette-sidebar">
+          <div class="sidebar-header">
+            <strong>Question Palette</strong>
+            <span id="desktop-slot-indicator" class="slot-badge">Slot 1</span>
+          </div>
+
+          <!-- Comprehensive Status Legend: Answered, Not Answered, Marked for Review, Not Visited -->
+          <div class="palette-legend">
+            <div class="legend-item"><span class="legend-swatch answered"></span> Answered (<b id="leg-count-answered">0</b>)</div>
+            <div class="legend-item"><span class="legend-swatch not-answered"></span> Not Answered (<b id="leg-count-not-answered">0</b>)</div>
+            <div class="legend-item"><span class="legend-swatch flagged"></span> Marked for Review (<b id="leg-count-flagged">0</b>)</div>
+            <div class="legend-item"><span class="legend-swatch not-visited"></span> Not Visited (<b id="leg-count-not-visited">0</b>)</div>
+          </div>
+
+          <div id="desktop-palette-grid" class="palette-grid"></div>
+
+          <button type="button" id="btn-desktop-submit" class="btn btn-gold btn-full" style="margin-top: 14px;">
+            Finish &amp; Submit Assessment
+          </button>
+        </aside>
       </div>
 
       <!-- Slide-up Mobile Question Palette + Submit Sheet -->
@@ -287,10 +314,13 @@
             <button type="button" id="btn-close-palette" class="btn btn-secondary btn-sm">Close ✕</button>
           </div>
           <div
-            style="display:flex; gap:14px; font-size:12px; color:var(--text-secondary); margin-top:8px; font-weight:600;">
-            <span><b style="color:#5b21b6;">●</b> Answered</span>
-            <span><b style="color:#d97706;">●</b> Review</span>
-            <span><b style="color:#94a3b8;">●</b> Unanswered</span>
+            style="display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--text-secondary); margin-top:8px; font-weight:600;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <span><b style="color:#5b21b6;">●</b> Answered</span>
+              <span><b style="color:#b91c1c;">●</b> Not Answered</span>
+              <span><b style="color:#d97706;">●</b> Review</span>
+              <span><b style="color:#94a3b8;">●</b> Not Visited</span>
+            </div>
           </div>
 
           <div id="palette-grid" class="palette-grid"></div>

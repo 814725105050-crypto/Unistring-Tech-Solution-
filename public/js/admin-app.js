@@ -64,11 +64,12 @@ async function enterDashboard(session) {
   document.getElementById('admin-backend-badge').textContent = `${session.email} · ${modeLabel}`;
 
   settings = await loadPortalSettings();
-  questions = await loadQuestions();
+  currentManagingSlot = Number(settings.activeSlot || 1);
+  questions = await loadQuestions(currentManagingSlot);
 
   applyBrandingLogos(settings?.logoUrl);
   populateSettingsForms();
-  renderQuestionsBank();
+  await refreshQuestionsSlotView();
 
   if (unsubData) unsubData();
   unsubData = await subscribeToAdminData(({ submissions, activeSessions }) => {
@@ -147,6 +148,8 @@ function bindLoginEvents() {
   });
 }
 
+let currentManagingSlot = 1;
+
 /* -------------------------------------------------------------------------- */
 /* Dashboard Events & Tabs                                                    */
 /* -------------------------------------------------------------------------- */
@@ -160,15 +163,66 @@ function bindDashboardEvents() {
       document.querySelectorAll('.admin-tab-panel').forEach((p) => {
         p.classList.toggle('hidden', p.id !== `tab-${target}`);
       });
+      if (target === 'questions') {
+        refreshQuestionsSlotView();
+      }
     });
   });
 
-  // Quick Open/Close toggle
+  // Overall Quick Open/Close toggle
   document.getElementById('btn-quick-toggle-quiz').addEventListener('click', async () => {
     settings = await savePortalSettings({ quizOpen: !settings.quizOpen });
     populateSettingsForms();
     showToast(settings.quizOpen ? 'Assessment is now OPEN for candidates.' : 'Assessment is now PAUSED.');
   });
+
+  // Slot 1 & Slot 2 Select / Toggle in Quick Bar
+  const slot1Btn = document.getElementById('btn-select-slot-1');
+  if (slot1Btn) {
+    slot1Btn.addEventListener('click', async () => {
+      // Toggle or activate Slot 1
+      const isCurrentlyActive = Number(settings.activeSlot || 1) === 1;
+      const newSlot1Open = isCurrentlyActive ? !settings.slot1Open : true;
+      settings = await savePortalSettings({
+        activeSlot: 1,
+        slot1Open: newSlot1Open
+      });
+      populateSettingsForms();
+      showToast(`Slot 1 is now ${newSlot1Open ? 'ACTIVE & OPEN' : 'PAUSED'} for candidates.`);
+    });
+  }
+
+  const slot2Btn = document.getElementById('btn-select-slot-2');
+  if (slot2Btn) {
+    slot2Btn.addEventListener('click', async () => {
+      // Toggle or activate Slot 2
+      const isCurrentlyActive = Number(settings.activeSlot || 1) === 2;
+      const newSlot2Open = isCurrentlyActive ? !settings.slot2Open : true;
+      settings = await savePortalSettings({
+        activeSlot: 2,
+        slot2Open: newSlot2Open
+      });
+      populateSettingsForms();
+      showToast(`Slot 2 is now ${newSlot2Open ? 'ACTIVE & OPEN' : 'PAUSED'} for candidates.`);
+    });
+  }
+
+  // Question Bank Slot Switchers (Tab 3)
+  const tabSlot1Btn = document.getElementById('btn-tab-slot-1');
+  if (tabSlot1Btn) {
+    tabSlot1Btn.addEventListener('click', async () => {
+      currentManagingSlot = 1;
+      await refreshQuestionsSlotView();
+    });
+  }
+
+  const tabSlot2Btn = document.getElementById('btn-tab-slot-2');
+  if (tabSlot2Btn) {
+    tabSlot2Btn.addEventListener('click', async () => {
+      currentManagingSlot = 2;
+      await refreshQuestionsSlotView();
+    });
+  }
 
   // Quick Result Visibility selector
   document.getElementById('quick-result-visibility').addEventListener('change', async (e) => {
@@ -242,10 +296,10 @@ function bindDashboardEvents() {
   // Question Bank Buttons (Tab 3)
   document.getElementById('btn-add-question').addEventListener('click', () => openQuestionEditor(-1));
   document.getElementById('btn-reset-questions').addEventListener('click', async () => {
-    if (!confirm('Reset the question bank back to the default sample questions?')) return;
-    questions = await resetQuestionsToDefault();
-    renderQuestionsBank();
-    showToast('Restored default sample questions.');
+    if (!confirm(`Clear all questions currently in Slot ${currentManagingSlot}?`)) return;
+    questions = await saveQuestions([], currentManagingSlot);
+    await refreshQuestionsSlotView();
+    showToast(`Cleared questions in Slot ${currentManagingSlot}.`);
   });
 
   // JSON Question Upload
@@ -262,7 +316,6 @@ function bindDashboardEvents() {
       const text = await file.text();
       let parsed = JSON.parse(text);
 
-      // Support either top-level array or { questions: [...] }
       let rawList = [];
       if (Array.isArray(parsed)) {
         rawList = parsed;
@@ -298,7 +351,6 @@ function bindDashboardEvents() {
         if (typeof q.correctIndex === 'number') {
           correctIdx = Math.max(0, Math.min(opts.length - 1, q.correctIndex));
         } else if (typeof q.correctOption === 'number') {
-          // If 1-indexed option numbers were provided
           correctIdx = q.correctOption > 0 && q.correctOption <= opts.length ? q.correctOption - 1 : 0;
         } else if (q.answer !== undefined) {
           if (typeof q.answer === 'number') {
@@ -313,6 +365,7 @@ function bindDashboardEvents() {
 
         return {
           id: q.id || Date.now() + idx,
+          slot: currentManagingSlot,
           category: String(q.category || q.topic || 'General').trim(),
           type: q.type === 'tf' ? 'tf' : 'mcq',
           question: questionText,
@@ -323,9 +376,9 @@ function bindDashboardEvents() {
       });
 
       questions = normalized;
-      await saveQuestions(questions);
-      renderQuestionsBank();
-      showToast(`Successfully uploaded & saved ${normalized.length} questions from JSON!`);
+      await saveQuestions(questions, currentManagingSlot);
+      await refreshQuestionsSlotView();
+      showToast(`Successfully uploaded ${normalized.length} questions to Slot ${currentManagingSlot}!`);
     } catch (err) {
       showToast(`Failed to parse JSON file: ${err.message}`, true);
     } finally {
@@ -335,37 +388,26 @@ function bindDashboardEvents() {
 
   // Download JSON Template
   document.getElementById('btn-download-json-template').addEventListener('click', () => {
-    const template = [
-      {
-        id: 1,
-        category: "Technical",
-        type: "mcq",
-        question: "Sample MCQ Question: What is the primary purpose of an index in a database?",
+    const template = [];
+    for (let i = 1; i <= 50; i++) {
+      template.push({
+        id: i,
+        category: i <= 25 ? 'Technical Aptitude' : 'Core Engineering',
+        type: 'mcq',
+        question: `Question ${i}: Enter your question text here?`,
         options: [
-          "Speed up data retrieval operations",
-          "Ensure permanent physical backup",
-          "Encrypt sensitive columns",
-          "Compress binary files"
+          'Option A (Correct Answer)',
+          'Option B',
+          'Option C',
+          'Option D'
         ],
         correctIndex: 0,
-        explanation: "Database indexes significantly optimize data retrieval speed."
-      },
-      {
-        id: 2,
-        category: "Logical Reasoning",
-        type: "tf",
-        question: "Sample True/False Question: In Git, a commit creates a snapshot of the repository.",
-        options: [
-          "True",
-          "False"
-        ],
-        correctIndex: 0,
-        explanation: "Git stores data as snapshots rather than diffs."
-      }
-    ];
+        explanation: 'Detailed explanation for this question.'
+      });
+    }
     downloadTextFile(
       JSON.stringify(template, null, 2),
-      'uts_questions_template.json',
+      `uts_50_questions_template_slot${currentManagingSlot}.json`,
       'application/json;charset=utf-8'
     );
   });
@@ -373,11 +415,11 @@ function bindDashboardEvents() {
   // Export current questions JSON
   document.getElementById('btn-export-json').addEventListener('click', () => {
     if (!questions || !questions.length) {
-      return showToast('No questions in bank to export.', true);
+      return showToast(`No questions in Slot ${currentManagingSlot} to export.`, true);
     }
     downloadTextFile(
       JSON.stringify(questions, null, 2),
-      `uts_questions_export_${todayStamp()}.json`,
+      `uts_questions_slot${currentManagingSlot}_export_${todayStamp()}.json`,
       'application/json;charset=utf-8'
     );
   });
@@ -412,12 +454,41 @@ function populateSettingsForms() {
     openBtn.className = 'btn btn-danger btn-sm';
   }
 
+  // Update Slot Controls
+  const activeSlot = Number(settings.activeSlot || 1);
+  const slot1Open = settings.slot1Open !== false;
+  const slot2Open = settings.slot2Open !== false;
+
+  const slot1Btn = document.getElementById('btn-select-slot-1');
+  const slot2Btn = document.getElementById('btn-select-slot-2');
+  const s1Lbl = document.getElementById('slot1-state-label');
+  const s2Lbl = document.getElementById('slot2-state-label');
+
+  if (s1Lbl) s1Lbl.textContent = slot1Open ? 'ON' : 'OFF';
+  if (s2Lbl) s2Lbl.textContent = slot2Open ? 'ON' : 'OFF';
+
+  if (slot1Btn) {
+    slot1Btn.className = activeSlot === 1
+      ? (slot1Open ? 'btn btn-gold btn-sm' : 'btn btn-danger btn-sm')
+      : 'btn btn-secondary btn-sm';
+  }
+  if (slot2Btn) {
+    slot2Btn.className = activeSlot === 2
+      ? (slot2Open ? 'btn btn-gold btn-sm' : 'btn btn-danger btn-sm')
+      : 'btn btn-secondary btn-sm';
+  }
+
+  const slotBadge = document.getElementById('active-slot-badge');
+  if (slotBadge) {
+    slotBadge.textContent = `Slot ${activeSlot} Active for Students (${activeSlot === 1 ? (slot1Open ? 'OPEN' : 'PAUSED') : (slot2Open ? 'OPEN' : 'PAUSED')})`;
+  }
+
   document.getElementById('quick-result-visibility').value =
     settings.resultVisibility || 'score_only';
 
   document.getElementById('cfg-quiz-title').value = settings.quizTitle || 'Placement Drive Assessment';
   document.getElementById('cfg-conducted-by').value = settings.conductedBy || 'Unistring Tech Solution';
-  document.getElementById('cfg-duration').value = settings.durationMinutes ?? 30;
+  document.getElementById('cfg-duration').value = settings.durationMinutes ?? 45;
   document.getElementById('cfg-hall-pin').value = settings.examAccessCode || '';
   document.getElementById('cfg-max-warnings').value = settings.maxWarnings ?? 2;
   document.getElementById('cfg-grace-sec').value = settings.returnGraceSeconds ?? 20;
@@ -535,7 +606,9 @@ function renderSubmissionsTable() {
       </td>
       <td>
         <div style="font-family:monospace; font-weight:800; color:#3b0764;">${escapeHtml(s.registerNumber)}</div>
-        <div style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(s.year || 'Candidate')}</div>
+        <div style="font-size:11.5px; color:var(--text-muted);">
+          ${escapeHtml(s.year || 'Candidate')} · <span class="hero-chip" style="padding:2px 7px; font-size:10px;">Slot ${s.slot || 1}</span>
+        </div>
       </td>
       <td>
         <strong style="font-size:15px; color:#5b21b6;">${s.score}/${s.totalQuestions}</strong>
@@ -623,8 +696,34 @@ function openSubmissionModal(s) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Question Bank Editor (Tab 3)                                               */
+/* Question Bank Editor (Tab 3: Slot 1 & Slot 2)                              */
 /* -------------------------------------------------------------------------- */
+
+async function refreshQuestionsSlotView() {
+  questions = await loadQuestions(currentManagingSlot);
+
+  const slot1Questions = await loadQuestions(1);
+  const slot2Questions = await loadQuestions(2);
+
+  const s1CountEl = document.getElementById('slot1-count');
+  if (s1CountEl) s1CountEl.textContent = String(slot1Questions.length);
+  const s2CountEl = document.getElementById('slot2-count');
+  if (s2CountEl) s2CountEl.textContent = String(slot2Questions.length);
+
+  const slot1TabBtn = document.getElementById('btn-tab-slot-1');
+  const slot2TabBtn = document.getElementById('btn-tab-slot-2');
+  if (slot1TabBtn) slot1TabBtn.className = currentManagingSlot === 1 ? 'btn btn-gold btn-sm' : 'btn btn-secondary btn-sm';
+  if (slot2TabBtn) slot2TabBtn.className = currentManagingSlot === 2 ? 'btn btn-gold btn-sm' : 'btn btn-secondary btn-sm';
+
+  const titleEl = document.getElementById('current-managing-slot-title');
+  if (titleEl) titleEl.textContent = `Slot ${currentManagingSlot}`;
+
+  document.querySelectorAll('.slot-name-btn-lbl').forEach((el) => {
+    el.textContent = `Slot ${currentManagingSlot}`;
+  });
+
+  renderQuestionsBank();
+}
 
 function renderQuestionsBank() {
   const countStr = String(questions.length);
@@ -634,6 +733,18 @@ function renderQuestionsBank() {
 
   const wrap = document.getElementById('questions-admin-list');
   wrap.innerHTML = '';
+
+  if (!questions.length) {
+    wrap.innerHTML = `
+      <div style="padding:32px 18px; text-align:center; background:#fbf9ff; border:2px dashed rgba(91,33,182,0.2); border-radius:12px;">
+        <div style="font-size:16px; font-weight:800; color:#5b21b6; margin-bottom:6px;">No Questions in Slot ${currentManagingSlot}</div>
+        <p style="font-size:13.5px; color:var(--text-muted); margin:0 0 14px;">
+          Default questions removed. Click <strong>Upload Slot ${currentManagingSlot} JSON</strong> above or <strong>+ Add Question</strong> to populate this slot.
+        </p>
+      </div>
+    `;
+    return;
+  }
 
   questions.forEach((q, idx) => {
     const card = document.createElement('div');
@@ -660,7 +771,7 @@ function renderQuestionsBank() {
       <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
         <div>
           <span style="font-size:11px; color:#5b21b6; font-weight:800; text-transform:uppercase;">
-            Q${idx + 1} · ${escapeHtml(q.category || 'General')} (${q.type === 'tf' ? 'True/False' : 'MCQ'})
+            Slot ${currentManagingSlot} · Q${idx + 1} · ${escapeHtml(q.category || 'General')} (${q.type === 'tf' ? 'True/False' : 'MCQ'})
           </span>
           <div style="font-weight:700; font-size:14.5px; margin:4px 0 8px; color:#1e1035;">${escapeHtml(q.question)}</div>
           ${optsHtml}
@@ -674,11 +785,10 @@ function renderQuestionsBank() {
 
     card.querySelector('.q-edit').addEventListener('click', () => openQuestionEditor(idx));
     card.querySelector('.q-del').addEventListener('click', async () => {
-      if (questions.length <= 1) return showToast('Assessment must have at least 1 question.', true);
-      if (!confirm(`Delete Question #${idx + 1}?`)) return;
+      if (!confirm(`Delete Question #${idx + 1} from Slot ${currentManagingSlot}?`)) return;
       questions.splice(idx, 1);
-      await saveQuestions(questions);
-      renderQuestionsBank();
+      await saveQuestions(questions, currentManagingSlot);
+      await refreshQuestionsSlotView();
       showToast('Deleted question.');
     });
 
@@ -749,6 +859,7 @@ async function handleSaveQuestionModal(e) {
 
   const item = {
     id: idx >= 0 && questions[idx] ? questions[idx].id : Date.now(),
+    slot: currentManagingSlot,
     category: document.getElementById('qedit-category').value.trim() || 'General',
     type,
     question: document.getElementById('qedit-prompt').value.trim(),
@@ -760,10 +871,10 @@ async function handleSaveQuestionModal(e) {
   if (idx >= 0) questions[idx] = item;
   else questions.push(item);
 
-  await saveQuestions(questions);
+  await saveQuestions(questions, currentManagingSlot);
   document.getElementById('question-modal').classList.add('hidden');
-  renderQuestionsBank();
-  showToast('Saved question.');
+  await refreshQuestionsSlotView();
+  showToast(`Saved question to Slot ${currentManagingSlot}.`);
 }
 
 /* -------------------------------------------------------------------------- */

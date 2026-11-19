@@ -176,13 +176,107 @@ function bindLoginEvents() {
   });
 }
 
-let currentManagingSlot = 1;
+let formsViewMode = 'list'; // 'list' or 'grid'
 
-/* -------------------------------------------------------------------------- */
-/* Dashboard Events & Tabs                                                    */
-/* -------------------------------------------------------------------------- */
+function bindGoogleFormsDashboardEvents() {
+  // View Toggle (Grid / List)
+  const toggleViewBtn = document.getElementById('btn-toggle-forms-view');
+  if (toggleViewBtn) {
+    toggleViewBtn.addEventListener('click', () => {
+      formsViewMode = formsViewMode === 'list' ? 'grid' : 'list';
+      document.getElementById('view-mode-icon').textContent = formsViewMode === 'list' ? '☵ Grid View' : '☰ List View';
+      renderAssessmentDrivesTable();
+    });
+  }
+
+  // Search input
+  const searchInput = document.getElementById('forms-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', renderAssessmentDrivesTable);
+  }
+
+  // Sort select
+  const sortSelect = document.getElementById('forms-sort-select');
+  if (sortSelect) {
+    sortSelect.addEventListener('change', renderAssessmentDrivesTable);
+  }
+
+  // Template Click Handlers
+  document.querySelectorAll('.template-card').forEach((card) => {
+    card.addEventListener('click', async () => {
+      const templateType = card.getAttribute('data-template') || (card.id === 'tmpl-blank-quiz' ? 'quiz' : 'blank');
+      let title = 'Untitled Assessment';
+      let duration = 45;
+      let slots = 2;
+
+      switch (templateType) {
+        case 'blank':
+          title = 'Untitled Form';
+          break;
+        case 'quiz':
+          title = 'Untitled Quiz';
+          break;
+        case 'exit_ticket':
+          title = 'Classroom Exit Ticket';
+          duration = 15;
+          slots = 1;
+          break;
+        case 'assessment':
+          title = 'Campus Placement Drive';
+          duration = 45;
+          slots = 2;
+          break;
+        case 'course_eval':
+          title = 'Course & Faculty Evaluation';
+          duration = 20;
+          slots = 1;
+          break;
+        case 'feedback':
+          title = 'Student Placement Feedback';
+          duration = 15;
+          slots = 1;
+          break;
+        case 'attendance':
+          title = 'Assessment Attendance Verification';
+          duration = 10;
+          slots = 1;
+          break;
+      }
+
+      const driveId = `DRIVE-${Date.now().toString(36).toUpperCase()}`;
+      const existingDrives = settings.assessmentDrives || [];
+      existingDrives.push({
+        id: driveId,
+        title,
+        slotsCount: slots,
+        durationMinutes: duration,
+        createdAt: new Date().toISOString(),
+        active: true
+      });
+
+      const statusMap = {};
+      for (let i = 1; i <= slots; i++) statusMap[String(i)] = true;
+
+      settings = await savePortalSettings({
+        assessmentId: driveId,
+        quizTitle: title,
+        totalSlots: slots,
+        activeSlot: 1,
+        slotStatusMap: statusMap,
+        durationMinutes: duration,
+        assessmentDrives: existingDrives
+      });
+
+      populateSettingsForms();
+      await refreshQuestionsSlotView();
+      showToast(`Created new form from template: "${title}"!`);
+    });
+  });
+}
 
 function bindDashboardEvents() {
+  bindGoogleFormsDashboardEvents();
+
   // Tabs
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -1293,93 +1387,150 @@ function renderAssessmentShareLinks() {
 
 function renderAssessmentDrivesTable() {
   const tbody = document.getElementById('assessment-drives-tbody');
-  if (!tbody) return;
+  const gridContainer = document.getElementById('forms-grid-container');
+  const listContainer = document.getElementById('forms-list-container');
+  if (!tbody || !gridContainer || !listContainer) return;
+
   const drives = settings?.assessmentDrives || [];
   const currentDriveId = settings?.assessmentId || 'default';
   const isOverallOpen = settings?.quizOpen !== false;
   const origin = window.location.origin;
 
-  if (!drives.length) {
-    // Show active default drive
-    const statusTag = isOverallOpen
-      ? `<span class="status-tag ok">OPEN NOW</span>`
-      : `<span class="status-tag bad">PAUSED / CLOSED</span>`;
-    tbody.innerHTML = `
-      <tr>
-        <td>
-          <div style="font-weight:700; color:#0f172a;">${escapeHtml(settings?.quizTitle || 'Placement Drive Assessment')}</div>
-          <div style="font-size:11.5px; color:var(--text-muted);">ID: ${escapeHtml(currentDriveId)}</div>
-        </td>
-        <td><b>${settings?.totalSlots || 2} Slots</b></td>
-        <td>${statusTag}</td>
-        <td>Default Drive</td>
-        <td>
-          <input type="text" readonly value="${origin}/" style="padding:4px 8px; font-size:11.5px; width:220px; background:#fff; border:1px solid #cbd5e1; border-radius:4px;" />
-        </td>
-        <td>
-          <span style="font-size:12px; color:${isOverallOpen ? '#047857' : '#b91c1c'}; font-weight:700;">● ${isOverallOpen ? 'Active (Open)' : 'Paused'}</span>
-        </td>
-      </tr>
-    `;
-    return;
+  // Search & Filter
+  const q = (document.getElementById('forms-search-input')?.value || '').trim().toLowerCase();
+  const sortMode = document.getElementById('forms-sort-select')?.value || 'last_opened';
+
+  let list = drives.slice();
+  if (!list.length) {
+    list.push({
+      id: currentDriveId,
+      title: settings?.quizTitle || 'Placement Drive Assessment',
+      slotsCount: settings?.totalSlots || 2,
+      durationMinutes: settings?.durationMinutes || 45,
+      createdAt: new Date().toISOString(),
+      active: true
+    });
   }
 
-  tbody.innerHTML = '';
-  drives.forEach((d) => {
-    const isSelectedDrive = d.id === currentDriveId;
-    const tr = document.createElement('tr');
-    if (isSelectedDrive) tr.style.background = isOverallOpen ? '#f0fdf4' : '#fff7ed';
+  if (q) {
+    list = list.filter((d) => (d.title || '').toLowerCase().includes(q) || (d.id || '').toLowerCase().includes(q));
+  }
 
-    let statusTag = '';
-    if (isSelectedDrive) {
-      statusTag = isOverallOpen
-        ? `<span class="status-tag ok">OPEN NOW</span>`
-        : `<span class="status-tag bad">PAUSED / CLOSED</span>`;
-    } else {
-      statusTag = `<span class="status-tag warn">INACTIVE</span>`;
-    }
-
-    tr.innerHTML = `
-      <td>
-        <div style="font-weight:700; color:#0f172a;">${escapeHtml(d.title)}</div>
-        <div style="font-size:11.5px; color:var(--text-muted);">ID: ${escapeHtml(d.id)}</div>
-      </td>
-      <td><b>${d.slotsCount || 2} Slots</b> (${d.durationMinutes || 45}m each)</td>
-      <td>${statusTag}</td>
-      <td style="font-size:12px;">${d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '-'}</td>
-      <td>
-        <input type="text" readonly value="${origin}/?drive=${d.id}" style="padding:4px 8px; font-size:11.5px; width:220px; background:#fff; border:1px solid #cbd5e1; border-radius:4px;" />
-      </td>
-      <td>
-        ${
-          !isSelectedDrive
-            ? `<button type="button" class="btn btn-primary btn-sm act-activate-drive" style="padding:4px 8px; font-size:11.5px;">Switch to this Drive</button>`
-            : `<span style="font-size:12px; color:${isOverallOpen ? '#047857' : '#b91c1c'}; font-weight:700;">● ${isOverallOpen ? 'Active (Open)' : 'Current (Paused)'}</span>`
-        }
-      </td>
-    `;
-
-    const actBtn = tr.querySelector('.act-activate-drive');
-    if (actBtn) {
-      actBtn.onclick = async () => {
-        const statusMap = {};
-        for (let i = 1; i <= (d.slotsCount || 2); i++) statusMap[String(i)] = true;
-        settings = await savePortalSettings({
-          assessmentId: d.id,
-          quizTitle: d.title,
-          totalSlots: d.slotsCount || 2,
-          activeSlot: 1,
-          slotStatusMap: statusMap,
-          durationMinutes: d.durationMinutes || 45
-        });
-        populateSettingsForms();
-        await refreshQuestionsSlotView();
-        showToast(`Switched active assessment drive to: "${d.title}"!`);
-      };
-    }
-
-    tbody.appendChild(tr);
+  list.sort((a, b) => {
+    if (sortMode === 'title_az') return (a.title || '').localeCompare(b.title || '');
+    if (sortMode === 'title_za') return (b.title || '').localeCompare(a.title || '');
+    return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
   });
+
+  // Switch between List and Grid
+  if (formsViewMode === 'grid') {
+    listContainer.classList.add('hidden');
+    gridContainer.classList.remove('hidden');
+    gridContainer.innerHTML = '';
+
+    list.forEach((d) => {
+      const isSelected = d.id === currentDriveId;
+      const card = document.createElement('div');
+      card.className = 'card glass3d';
+      card.style.padding = '14px';
+      card.style.border = isSelected ? '2px solid #293262' : '1px solid #e2e8f0';
+      card.style.display = 'flex';
+      card.style.flexDirection = 'column';
+      card.style.gap = '8px';
+      card.style.background = isSelected ? '#f8fafc' : '#fff';
+
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div style="font-weight:800; font-size:14px; color:#0f172a;">${escapeHtml(d.title)}</div>
+          <span style="font-size:11px; font-weight:800; padding:2px 6px; border-radius:4px; ${isSelected ? 'background:#dbeafe; color:#1e40af;' : 'background:#f1f5f9; color:#475569;'}">
+            ${isSelected ? 'CURRENT' : 'SAVED'}
+          </span>
+        </div>
+        <div style="font-size:12px; color:var(--text-muted);">ID: ${escapeHtml(d.id)} · ${d.slotsCount || 2} Slots (${d.durationMinutes || 45}m)</div>
+        <div style="margin-top:auto; display:flex; gap:6px; flex-wrap:wrap; padding-top:10px;">
+          <button type="button" class="btn btn-primary btn-sm act-activate-drive" style="flex:1; font-size:11.5px; padding:4px 8px;">
+            ${isSelected ? '● Active Drive' : 'Switch to Drive'}
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm act-share-drive" style="font-size:11.5px; padding:4px 8px;">
+            📋 Copy Link
+          </button>
+        </div>
+      `;
+
+      card.querySelector('.act-share-drive').onclick = () => {
+        navigator.clipboard.writeText(`${origin}/?drive=${d.id}`).then(() => showToast('Drive link copied!'));
+      };
+
+      const actBtn = card.querySelector('.act-activate-drive');
+      if (!isSelected) {
+        actBtn.onclick = async () => activateDrive(d);
+      }
+
+      gridContainer.appendChild(card);
+    });
+  } else {
+    gridContainer.classList.add('hidden');
+    listContainer.classList.remove('hidden');
+    tbody.innerHTML = '';
+
+    list.forEach((d) => {
+      const isSelectedDrive = d.id === currentDriveId;
+      const tr = document.createElement('tr');
+      if (isSelectedDrive) tr.style.background = isOverallOpen ? '#f0fdf4' : '#fff7ed';
+
+      let statusTag = '';
+      if (isSelectedDrive) {
+        statusTag = isOverallOpen
+          ? `<span class="status-tag ok">OPEN NOW</span>`
+          : `<span class="status-tag bad">PAUSED / CLOSED</span>`;
+      } else {
+        statusTag = `<span class="status-tag warn">INACTIVE</span>`;
+      }
+
+      tr.innerHTML = `
+        <td>
+          <div style="font-weight:700; color:#0f172a;">${escapeHtml(d.title)}</div>
+          <div style="font-size:11.5px; color:var(--text-muted);">ID: ${escapeHtml(d.id)}</div>
+        </td>
+        <td><b>${d.slotsCount || 2} Slots</b> (${d.durationMinutes || 45}m each)</td>
+        <td>${statusTag}</td>
+        <td style="font-size:12px;">${d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '-'}</td>
+        <td>
+          <input type="text" readonly value="${origin}/?drive=${d.id}" style="padding:4px 8px; font-size:11.5px; width:220px; background:#fff; border:1px solid #cbd5e1; border-radius:4px;" />
+        </td>
+        <td>
+          ${
+            !isSelectedDrive
+              ? `<button type="button" class="btn btn-primary btn-sm act-activate-drive" style="padding:4px 8px; font-size:11.5px;">Switch to this Drive</button>`
+              : `<span style="font-size:12px; color:${isOverallOpen ? '#047857' : '#b91c1c'}; font-weight:700;">● ${isOverallOpen ? 'Active (Open)' : 'Current (Paused)'}</span>`
+          }
+        </td>
+      `;
+
+      const actBtn = tr.querySelector('.act-activate-drive');
+      if (actBtn) {
+        actBtn.onclick = async () => activateDrive(d);
+      }
+
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+async function activateDrive(d) {
+  const statusMap = {};
+  for (let i = 1; i <= (d.slotsCount || 2); i++) statusMap[String(i)] = true;
+  settings = await savePortalSettings({
+    assessmentId: d.id,
+    quizTitle: d.title,
+    totalSlots: d.slotsCount || 2,
+    activeSlot: 1,
+    slotStatusMap: statusMap,
+    durationMinutes: d.durationMinutes || 45
+  });
+  populateSettingsForms();
+  await refreshQuestionsSlotView();
+  showToast(`Switched active assessment drive to: "${d.title}"!`);
 }
 
 /* -------------------------------------------------------------------------- */

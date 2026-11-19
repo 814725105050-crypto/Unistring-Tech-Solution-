@@ -324,53 +324,150 @@
     </section>
 
     <!-- ===================================================================
-         TAB 3: ASSESSMENTS & DRIVES MANAGER (CREATE, GENERATE LINKS, DASHBOARD)
+         TAB 3: GOOGLE FORMS-STYLE DASHBOARD & ASSESSMENTS MANAGER
          =================================================================== -->
     <section id="tab-assessments" class="admin-tab-panel hidden">
-      <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; padding-bottom:14px; border-bottom:1.5px solid #e2e8f0;">
-          <div>
-            <h3 style="margin:0; font-size:18px; color:#0f172a; font-weight:700;">Multi-Assessment Management &amp; Custom Links</h3>
-            <p style="margin:3px 0 0; font-size:13px; color:var(--text-muted);">
-              Create distinct assessment drives (e.g. Technical Round 1, Aptitude Drive B), generate unique candidate direct links, and monitor results.
-            </p>
+      <div class="card" style="padding: 20px 22px;">
+        
+        <!-- Google Forms Top Section: Start a New Form Row -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:18px 20px; margin-bottom:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <h4 style="margin:0; font-size:15px; color:#1e293b; font-weight:800; letter-spacing:-0.2px;">Start a new assessment / form</h4>
+            <span style="font-size:12px; font-weight:700; color:#475569;">Template Gallery</span>
           </div>
-          <button type="button" id="btn-create-drive-modal" class="btn btn-primary btn-sm">
-            + Create New Assessment Drive
-          </button>
+          
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:14px;">
+            <!-- Blank Form -->
+            <div class="template-card" id="tmpl-blank-form" style="cursor:pointer; text-align:center;">
+              <div style="height:110px; border-radius:8px; border:2px dashed #cbd5e1; background:#fff; display:flex; align-items:center; justify-content:center; transition:all 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <span style="font-size:36px; color:#4f46e5; line-height:1;">+</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:700; color:#0f172a; margin-top:6px;">Blank Form</div>
+            </div>
+
+            <!-- Blank Quiz -->
+            <div class="template-card" id="tmpl-blank-quiz" style="cursor:pointer; text-align:center;">
+              <div style="height:110px; border-radius:8px; border:1.5px solid #c7d2fe; background:#eef2ff; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <span style="font-size:24px;">📝</span>
+                <span style="font-size:11px; font-weight:800; color:#4338ca;">Quiz Mode</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:700; color:#0f172a; margin-top:6px;">Blank Quiz</div>
+            </div>
+
+            <!-- Exit Ticket -->
+            <div class="template-card" data-template="exit_ticket" style="cursor:pointer; text-align:center;">
+              <div style="height:110px; border-radius:8px; border:1.5px solid #fed7aa; background:#fff7ed; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px;">
+                <span style="font-size:24px;">🎟️</span>
+                <span style="font-size:11px; font-weight:800; color:#c2410c;">Exit Ticket</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:700; color:#0f172a; margin-top:6px;">Exit Ticket</div>
+            </div>
+
+            <!-- Assessment -->
+            <div class="template-card" data-template="assessment" style="cursor:pointer; text-align:center;">
+              <div style="height:110px; border-radius:8px; border:1.5px solid #bbf7d0; background:#f0fdf4; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px;">
+                <span style="font-size:24px;">🎓</span>
+                <span style="font-size:11px; font-weight:800; color:#15803d;">Assessment</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:700; color:#0f172a; margin-top:6px;">Placement Drive</div>
+            </div>
+
+            <!-- Course Evaluation -->
+            <div class="template-card" data-template="course_eval" style="cursor:pointer; text-align:center;">
+              <div style="height:110px; border-radius:8px; border:1.5px solid #e9d5ff; background:#faf5ff; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px;">
+                <span style="font-size:24px;">⭐</span>
+                <span style="font-size:11px; font-weight:800; color:#7e22ce;">Evaluation</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:700; color:#0f172a; margin-top:6px;">Course Eval</div>
+            </div>
+
+            <!-- Feedback -->
+            <div class="template-card" data-template="feedback" style="cursor:pointer; text-align:center;">
+              <div style="height:110px; border-radius:8px; border:1.5px solid #fecdd3; background:#fff1f2; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px;">
+                <span style="font-size:24px;">💬</span>
+                <span style="font-size:11px; font-weight:800; color:#be123c;">Feedback</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:700; color:#0f172a; margin-top:6px;">Student Feedback</div>
+            </div>
+
+            <!-- Attendance -->
+            <div class="template-card" data-template="attendance" style="cursor:pointer; text-align:center;">
+              <div style="height:110px; border-radius:8px; border:1.5px solid #bae6fd; background:#f0f9ff; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px;">
+                <span style="font-size:24px;">📋</span>
+                <span style="font-size:11px; font-weight:800; color:#0369a1;">Attendance</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:700; color:#0f172a; margin-top:6px;">Attendance Sheet</div>
+            </div>
+          </div>
         </div>
 
-        <!-- Current Active Assessment Link Box -->
-        <div class="glass3d card" style="padding:16px 18px; margin-bottom:18px; border:1px solid rgba(41,50,98,0.22); background:#f8fafc;">
-          <h4 style="margin:0 0 8px; font-size:15px; color:#0f172a; font-weight:700;">Candidate Assessment Links (Copy &amp; Share)</h4>
-          <div style="display:flex; flex-direction:column; gap:10px;">
+        <!-- Google Forms Middle Bar: Recent Forms & Controls -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <h3 style="margin:0; font-size:17px; color:#0f172a; font-weight:800;">Recent Forms &amp; Drives</h3>
+            <select id="forms-owner-filter" style="padding:4px 8px; border-radius:6px; font-size:12px; font-weight:600; border:1px solid #cbd5e1; background:#fff;">
+              <option value="owned_by_anyone">Owned by anyone</option>
+              <option value="owned_by_me">Owned by me</option>
+              <option value="not_owned_by_me">Not owned by me</option>
+            </select>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px;">
+            <!-- Search Forms -->
+            <input type="search" id="forms-search-input" placeholder="Search forms..." style="padding:6px 10px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px; width:180px;" />
+
+            <!-- Sort A-Z or Last Opened -->
+            <select id="forms-sort-select" style="padding:5px 8px; border-radius:6px; font-size:12px; font-weight:600; border:1px solid #cbd5e1; background:#fff;">
+              <option value="last_opened">Last opened by me</option>
+              <option value="last_modified">Last modified</option>
+              <option value="title_az">Title (A-Z)</option>
+              <option value="title_za">Title (Z-A)</option>
+            </select>
+
+            <!-- Grid vs List View Toggle -->
+            <button type="button" id="btn-toggle-forms-view" class="btn btn-secondary btn-sm" style="padding:5px 10px; font-size:12px;">
+              <span id="view-mode-icon">☰ List View</span>
+            </button>
+
+            <button type="button" id="btn-create-drive-modal" class="btn btn-primary btn-sm">
+              + New Drive
+            </button>
+          </div>
+        </div>
+
+        <!-- Current Active Candidate Link Box -->
+        <div class="glass3d card" style="padding:14px 16px; margin-bottom:18px; border:1px solid rgba(41,50,98,0.22); background:#f8fafc;">
+          <h4 style="margin:0 0 8px; font-size:14px; color:#0f172a; font-weight:700;">Direct Candidate Assessment Links</h4>
+          <div style="display:flex; flex-direction:column; gap:8px;">
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-              <span style="font-size:12.5px; font-weight:700; width:130px; color:#334155;">General Portal Link:</span>
-              <input type="text" id="share-link-main" readonly style="flex:1; min-width:240px; padding:7px 10px; font-size:12.5px; background:#fff; border:1px solid #cbd5e1; border-radius:6px;" />
+              <span style="font-size:12.5px; font-weight:700; width:140px; color:#334155;">General Portal:</span>
+              <input type="text" id="share-link-main" readonly style="flex:1; min-width:220px; padding:6px 9px; font-size:12px; background:#fff; border:1px solid #cbd5e1; border-radius:6px;" />
               <button type="button" class="btn btn-secondary btn-sm copy-btn" data-target="share-link-main">Copy Link</button>
               <a href="/" target="_blank" class="btn btn-primary btn-sm">Open ↗</a>
             </div>
-            <div id="dynamic-slot-links-container" style="display:flex; flex-direction:column; gap:8px;"></div>
+            <div id="dynamic-slot-links-container" style="display:flex; flex-direction:column; gap:6px;"></div>
           </div>
         </div>
 
-        <!-- Existing Drives Table -->
-        <h4 style="margin:16px 0 10px; font-size:15px; color:#0f172a; font-weight:700;">Assessment Drives List</h4>
-        <div class="table-wrap">
+        <!-- Forms Container: List / Grid -->
+        <div id="forms-grid-container" class="hidden" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:16px;"></div>
+
+        <div id="forms-list-container" class="table-wrap">
           <table class="data-table">
             <thead>
               <tr>
-                <th>Drive Name</th>
+                <th>Drive / Form Name</th>
                 <th>Slots Count</th>
                 <th>Status</th>
-                <th>Created</th>
-                <th>Candidate Direct Link</th>
+                <th>Created / Opened</th>
+                <th>Direct Candidate Link</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="assessment-drives-tbody"></tbody>
           </table>
         </div>
+
       </div>
     </section>
 
@@ -600,22 +697,37 @@
           <div class="field">
             <label>Question Type</label>
             <select id="qedit-type">
-              <option value="mcq">Multiple Choice (4 Options)</option>
-              <option value="tf">True / False (2 Options)</option>
+              <option value="mcq">Multiple Choice (Single Answer)</option>
+              <option value="checkboxes">Checkboxes (Multiple Answers)</option>
+              <option value="short_answer">Short Answer</option>
+              <option value="paragraph">Paragraph / Long Answer</option>
+              <option value="tf">True / False</option>
+              <option value="numeric">Numeric / Numerical Value</option>
+              <option value="code">Code Snippet / Programming</option>
             </select>
           </div>
           <div class="field">
-            <label>Question Prompt</label>
+            <label>Question Prompt / Text</label>
             <textarea id="qedit-prompt" rows="3" required></textarea>
           </div>
+          <div style="display:flex; gap:12px; margin-bottom:8px;">
+            <div class="field" style="flex:1;">
+              <label>Marks / Score</label>
+              <input type="number" id="qedit-marks" value="1" min="0" step="0.5" />
+            </div>
+            <div class="field" style="flex:1;">
+              <label>Negative Marks (Penalty)</label>
+              <input type="number" id="qedit-neg-marks" value="0" min="0" step="0.25" />
+            </div>
+          </div>
           <div id="qedit-options-wrap" class="form-grid"></div>
-          <div class="field">
-            <label>Correct Option</label>
+          <div class="field" id="qedit-correct-wrap">
+            <label>Answer Key / Correct Answer</label>
             <select id="qedit-correct"></select>
           </div>
           <div class="field">
-            <label>Explanation (Optional Reference)</label>
-            <textarea id="qedit-explanation" rows="2"></textarea>
+            <label>Explanation &amp; Student Feedback</label>
+            <textarea id="qedit-explanation" rows="2" placeholder="Shown to students only if detailed answers are released."></textarea>
           </div>
         </div>
         <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">

@@ -171,9 +171,14 @@
             <div style="display:flex; align-items:center; gap:8px; padding:4px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">
               <span style="font-weight:600; color:#0f172a; font-size:13px;">Slots Control:</span>
               <div id="quick-slot-buttons-container" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"></div>
-              <button type="button" id="btn-add-new-slot" class="btn btn-secondary btn-sm" style="padding:4px 8px; font-size:11px;" title="Add another slot to this assessment">
-                + Add Slot
-              </button>
+              <div style="display:flex; gap:4px;">
+                <button type="button" id="btn-add-new-slot" class="btn btn-secondary btn-sm" style="padding:4px 8px; font-size:11px;" title="Add another slot to this assessment">
+                  + Add Slot
+                </button>
+                <button type="button" id="btn-remove-last-slot" class="btn btn-danger btn-sm" style="padding:4px 8px; font-size:11px;" title="Remove the last slot">
+                  - Remove Slot
+                </button>
+              </div>
             </div>
 
             <div style="display:flex; align-items:center; gap:8px; font-size:13px;">

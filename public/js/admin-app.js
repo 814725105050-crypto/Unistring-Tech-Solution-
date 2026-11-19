@@ -193,7 +193,7 @@ function bindDashboardEvents() {
   const addSlotBtn = document.getElementById('btn-add-new-slot');
   if (addSlotBtn) {
     addSlotBtn.addEventListener('click', async () => {
-      const currentTotal = Math.max(2, Number(settings.totalSlots || 2));
+      const currentTotal = Math.max(1, Number(settings.totalSlots || 2));
       const newTotal = currentTotal + 1;
       const statusMap = settings.slotStatusMap || {};
       statusMap[String(newTotal)] = true;
@@ -204,6 +204,37 @@ function bindDashboardEvents() {
       populateSettingsForms();
       await refreshQuestionsSlotView();
       showToast(`Added Slot ${newTotal} to the assessment! You can now upload questions to it.`);
+    });
+  }
+
+  // Remove Slot button
+  const removeSlotBtn = document.getElementById('btn-remove-last-slot');
+  if (removeSlotBtn) {
+    removeSlotBtn.addEventListener('click', async () => {
+      const currentTotal = Math.max(1, Number(settings.totalSlots || 2));
+      if (currentTotal <= 1) {
+        return showToast('Cannot remove Slot 1. Assessments need at least one active slot.', true);
+      }
+      const slotToRemove = currentTotal;
+      if (!confirm(`Are you sure you want to remove Slot ${slotToRemove}? Any questions in Slot ${slotToRemove} will no longer be visible to students.`)) {
+        return;
+      }
+      const newTotal = currentTotal - 1;
+      const statusMap = { ...(settings.slotStatusMap || {}) };
+      delete statusMap[String(slotToRemove)];
+
+      const patch = {
+        totalSlots: newTotal,
+        slotStatusMap: statusMap
+      };
+      if (Number(settings.activeSlot || 1) === slotToRemove) {
+        patch.activeSlot = newTotal;
+      }
+      settings = await savePortalSettings(patch);
+      currentManagingSlot = Math.min(currentManagingSlot, newTotal);
+      populateSettingsForms();
+      await refreshQuestionsSlotView();
+      showToast(`Removed Slot ${slotToRemove}. Total slots now: ${newTotal}.`);
     });
   }
 

@@ -7,10 +7,21 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email != null;
     }
 
-    // Portal configuration & question bank: readable by candidates, editable ONLY by Admin
-    match /portal_config/{docId} {
+    // Portal general configuration (branding, active slots, titles)
+    // Questions bank: NEVER readable by arbitrary unauthenticated clients. Server API handles question delivery!
+    match /portal_config/main {
       allow read: if true;
       allow write: if isAuthorizedAdmin();
+    }
+
+    match /portal_config/assessment_drives {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin();
+    }
+
+    // Full question bank containing correct answers: ADMIN ONLY
+    match /portal_config/{docId} {
+      allow read, write: if isAuthorizedAdmin();
     }
 
     // Live active assessment proctoring telemetry
@@ -27,19 +38,12 @@ service cloud.firestore {
     }
 
     // Candidate assessment submissions
+    // Candidates submit through the secure server grading API (/api/assessment/submit).
+    // Direct client submission creations are locked to server or verified admin to prevent score tampering.
     match /submissions/{submissionId} {
-      allow get: if true;
+      allow get: if isAuthorizedAdmin();
       allow list, delete: if isAuthorizedAdmin();
-
-      allow create: if !exists(/databases/$(database)/documents/submissions/$(submissionId))
-        && request.resource.data.email is string
-        && request.resource.data.fullName is string
-        && request.resource.data.score is number;
-
-      // Allow candidate to submit retake request on their own submission, or admin full update
-      allow update: if isAuthorizedAdmin() || (
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['retakeRequested', 'retakeRequestReason', 'retakeRequestedAt'])
-      );
+      allow create, update: if isAuthorizedAdmin();
     }
   }
 }

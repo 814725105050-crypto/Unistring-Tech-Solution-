@@ -370,23 +370,51 @@ function bindUIEvents() {
   startBtn.addEventListener('click', async () => {
     if (!candidate) return;
     startBtn.disabled = true;
-    startBtn.textContent = 'Locking Screen...';
+    startBtn.textContent = 'Locking Screen & Authorizing...';
 
     try {
       const activeSlot = candidate.slot || Number(settings.activeSlot || 1);
-      rawQuestions = await loadQuestions(activeSlot);
+      
+      // Request server authorization, session token, and sanitized questions (NO ANSWER KEYS)
+      const startRes = await fetch('/api/assessment/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: candidate.fullName,
+          registerNumber: candidate.registerNumber,
+          email: candidate.email,
+          phone: candidate.phone,
+          department: candidate.department,
+          year: candidate.year,
+          college: candidate.college,
+          accessPin: document.getElementById('reg-hall-pin')?.value || '',
+          requestedSlot: activeSlot
+        })
+      });
+
+      const startData = await startRes.json();
+      if (!startRes.ok || !startData.ok) {
+        alert(startData.error || `Unable to start assessment for Slot ${activeSlot}. Please contact the coordinator.`);
+        return;
+      }
+
+      window.__utsExamToken = startData.token;
+      rawQuestions = startData.questions;
       if (!rawQuestions || !rawQuestions.length) {
         alert(`No questions found for Slot ${activeSlot}. Please contact the coordinator.`);
         return;
       }
-      const durationMs = Number(settings.durationMinutes || 45) * 60 * 1000;
+
+      const durationMs = (startData.durationSeconds || Number(settings.durationMinutes || 45) * 60) * 1000;
       const now = Date.now();
 
       attemptState = {
         candidate,
         slot: activeSlot,
+        token: startData.token,
+        sessionId: startData.sessionId,
         startedAt: now,
-        deadlineAt: now + durationMs,
+        deadlineAt: startData.expiresAt || (now + durationMs),
         currentIndex: 0,
         answers: {},
         flagged: {},
@@ -408,6 +436,9 @@ function bindUIEvents() {
       }
 
       launchActiveQuiz();
+    } catch (err) {
+      console.error('Failed to initiate secure assessment session:', err);
+      alert('Network or server error while initializing assessment session. Please retry.');
     } finally {
       startBtn.disabled = false;
       startBtn.textContent = 'Lock Screen & Start Quiz';
@@ -1104,58 +1135,76 @@ async function finalizeQuizSubmission(submitReason = 'Manual Submit', isAutoSubm
   if (heartbeatInterval) clearInterval(heartbeatInterval);
   ExamProctor.exitFullscreenSafe();
 
-  let score = 0;
-  const detailedBreakdown = preparedQuestions.map((q) => {
-    const chosenIdx = attemptState.answers[q.id];
-    const isCorrect = chosenIdx !== undefined && chosenIdx === q.correctShuffledIndex;
-    if (isCorrect) score++;
-    return {
-      questionId: q.id,
-      question: q.question,
-      selectedText: chosenIdx !== undefined ? q.options[chosenIdx] : '(Not Answered)',
-      correctText: q.options[q.correctShuffledIndex],
-      isCorrect,
-      explanation: q.explanation
-    };
-  });
-
-  const totalQuestions = preparedQuestions.length;
-  const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
-  const elapsedSeconds = Math.max(1, Math.round((Date.now() - attemptState.startedAt) / 1000));
-
   const remLockSec = getRemainingSubmissionLockSec();
   const prematureExit = isAutoSubmitted && remLockSec > 0;
+  const token = attemptState.token || window.__utsExamToken;
 
-  const submissionPayload = {
-    fullName: candidate.fullName,
-    email: candidate.email,
-    registerNumber: candidate.registerNumber,
-    phone: candidate.phone,
-    slot: candidate.slot || attemptState.slot || Number(settings.activeSlot || 1),
-    assessmentId: settings.assessmentId || 'default',
-    department: FIXED_DEPARTMENT,
-    year: candidate.year,
-    college: FIXED_COLLEGE,
-    score,
-    totalQuestions,
-    percentage,
-    answeredCount: Object.keys(attemptState.answers).length,
-    elapsedSeconds,
-    warningsUsed: attemptState.warningsUsed || 0,
-    maxWarnings: settings.maxWarnings ?? 2,
-    violations: attemptState.violations || [],
-    submitReason,
-    isAutoSubmitted,
-    prematureExit,
-    retakeRequested: false,
-    breakdown: detailedBreakdown,
-    submittedAt: new Date().toISOString()
-  };
+  let savedRecord = null;
+  try {
+    // Send to Server Express Grading Engine
+    const subRes = await fetch('/api/assessment/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token,
+        responses: attemptState.answers,
+        isAutoSubmitted,
+        submitReason,
+        prematureExit,
+        warningsUsed: attemptState.warningsUsed || 0
+      })
+    });
+
+    const subData = await subRes.json();
+    if (subRes.ok && subData.ok) {
+      savedRecord = {
+        fullName: candidate.fullName,
+        email: candidate.email,
+        registerNumber: candidate.registerNumber,
+        score: subData.score,
+        totalQuestions: subData.totalQuestions,
+        percentage: subData.percentage,
+        elapsedSeconds: subData.elapsedSeconds,
+        isAutoSubmitted: subData.isAutoSubmitted,
+        submitReason,
+        submissionId: subData.submissionId,
+        submittedAt: subData.submittedAt
+      };
+    }
+  } catch (err) {
+    console.error('Server grading request error, utilizing client fallback:', err);
+  }
 
   clearAttemptLocal();
-  const savedRecord = await recordQuizSubmission(submissionPayload);
-  await removeActiveSession(candidate.email, candidate.registerNumber);
+  if (!savedRecord) {
+    // Fallback in case of server offline
+    const totalQuestions = preparedQuestions.length;
+    const elapsedSeconds = Math.max(1, Math.round((Date.now() - attemptState.startedAt) / 1000));
+    const fallbackPayload = {
+      fullName: candidate.fullName,
+      email: candidate.email,
+      registerNumber: candidate.registerNumber,
+      phone: candidate.phone,
+      slot: candidate.slot || attemptState.slot || Number(settings.activeSlot || 1),
+      assessmentId: settings.assessmentId || 'default',
+      department: FIXED_DEPARTMENT,
+      year: candidate.year,
+      college: FIXED_COLLEGE,
+      score: 0,
+      totalQuestions,
+      percentage: 0,
+      answeredCount: Object.keys(attemptState.answers).length,
+      elapsedSeconds,
+      warningsUsed: attemptState.warningsUsed || 0,
+      submitReason,
+      isAutoSubmitted,
+      prematureExit,
+      submittedAt: new Date().toISOString()
+    };
+    savedRecord = await recordQuizSubmission(fallbackPayload);
+  }
 
+  await removeActiveSession(candidate.email, candidate.registerNumber);
   renderResultScreen(savedRecord, false);
 }
 

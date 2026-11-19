@@ -48,10 +48,16 @@ export function isFirebaseConfigured(cfg = getEffectiveFirebaseConfig()) {
  */
 export const ADMIN_ACCESS = Object.freeze({
   allowAnyFirebaseUser: true,
-  allowedEmails: [],
-  allowedEmail: '',
-  allowedPasswordHashes: [],
-  passwordSha256: ''
+  allowedEmails: [
+    '814725105050@trp.srmtrichy.edu.in',
+    '814725105014@trp.srmtrichy.edu.in',
+    'admin@unistringtech.com'
+  ],
+  allowedEmail: '814725105050@trp.srmtrichy.edu.in',
+  allowedPasswordHashes: [
+    '02ec78533da916a8a24392b408d3a32aa4a5d766bf5632b40f08a5d230c4f920'
+  ],
+  passwordSha256: '02ec78533da916a8a24392b408d3a32aa4a5d766bf5632b40f08a5d230c4f920'
 });
 
 /**

@@ -857,9 +857,17 @@ export async function loginAdmin(emailInput, passwordInput) {
       );
       return { email: normalizedEmail, mode: 'firebase' };
     } catch (err) {
+      // If Firebase Auth fails with invalid credentials, check if master emergency credentials match
+      if (validHash && (allowedList.length === 0 || allowedList.includes(normalizedEmail))) {
+        sessionStorage.setItem(
+          STORAGE_KEYS.ADMIN_SESSION,
+          JSON.stringify({ email: normalizedEmail, loggedInAt: Date.now(), mode: 'master' })
+        );
+        return { email: normalizedEmail, mode: 'master' };
+      }
       const code = String(err?.code || '');
       if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
-        throw new Error('Invalid email or password. Please verify credentials configured in Firebase Console.');
+        throw new Error('Invalid email or password. Please verify your administrator credentials.');
       }
       throw new Error(err?.message || 'Firebase Authentication failed.');
     }

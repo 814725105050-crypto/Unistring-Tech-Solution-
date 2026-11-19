@@ -176,51 +176,75 @@ function bindDashboardEvents() {
     showToast(settings.quizOpen ? 'Assessment is now OPEN for candidates.' : 'Assessment is now PAUSED.');
   });
 
-  // Slot 1 & Slot 2 Select / Toggle in Quick Bar
-  const slot1Btn = document.getElementById('btn-select-slot-1');
-  if (slot1Btn) {
-    slot1Btn.addEventListener('click', async () => {
-      // Toggle or activate Slot 1
-      const isCurrentlyActive = Number(settings.activeSlot || 1) === 1;
-      const newSlot1Open = isCurrentlyActive ? !settings.slot1Open : true;
+  // Add new Slot button
+  const addSlotBtn = document.getElementById('btn-add-new-slot');
+  if (addSlotBtn) {
+    addSlotBtn.addEventListener('click', async () => {
+      const currentTotal = Math.max(2, Number(settings.totalSlots || 2));
+      const newTotal = currentTotal + 1;
+      const statusMap = settings.slotStatusMap || {};
+      statusMap[String(newTotal)] = true;
       settings = await savePortalSettings({
+        totalSlots: newTotal,
+        slotStatusMap: statusMap
+      });
+      populateSettingsForms();
+      await refreshQuestionsSlotView();
+      showToast(`Added Slot ${newTotal} to the assessment! You can now upload questions to it.`);
+    });
+  }
+
+  // Assessment Drives Create Modal
+  const createDriveBtn = document.getElementById('btn-create-drive-modal');
+  if (createDriveBtn) {
+    createDriveBtn.addEventListener('click', () => {
+      document.getElementById('drive-modal').classList.remove('hidden');
+    });
+  }
+  const cancelDriveBtn = document.getElementById('btn-cancel-drive-modal');
+  if (cancelDriveBtn) {
+    cancelDriveBtn.addEventListener('click', () => {
+      document.getElementById('drive-modal').classList.add('hidden');
+    });
+  }
+  const driveForm = document.getElementById('drive-create-form');
+  if (driveForm) {
+    driveForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('drive-title').value.trim();
+      const rawId = document.getElementById('drive-id').value.trim();
+      const driveId = rawId || `UTS-${Date.now().toString(36).toUpperCase()}`;
+      const slotsCount = Math.max(1, Number(document.getElementById('drive-slots').value || 2));
+      const duration = Math.max(5, Number(document.getElementById('drive-duration').value || 45));
+
+      const existingDrives = settings.assessmentDrives || [];
+      const newDrive = {
+        id: driveId,
+        title,
+        slotsCount,
+        durationMinutes: duration,
+        createdAt: new Date().toISOString(),
+        active: true
+      };
+      existingDrives.push(newDrive);
+
+      const statusMap = {};
+      for (let i = 1; i <= slotsCount; i++) statusMap[String(i)] = true;
+
+      settings = await savePortalSettings({
+        assessmentId: driveId,
+        quizTitle: title,
+        totalSlots: slotsCount,
         activeSlot: 1,
-        slot1Open: newSlot1Open
+        slotStatusMap: statusMap,
+        durationMinutes: duration,
+        assessmentDrives: existingDrives
       });
+
+      document.getElementById('drive-modal').classList.add('hidden');
       populateSettingsForms();
-      showToast(`Slot 1 is now ${newSlot1Open ? 'ACTIVE & OPEN' : 'PAUSED'} for candidates.`);
-    });
-  }
-
-  const slot2Btn = document.getElementById('btn-select-slot-2');
-  if (slot2Btn) {
-    slot2Btn.addEventListener('click', async () => {
-      // Toggle or activate Slot 2
-      const isCurrentlyActive = Number(settings.activeSlot || 1) === 2;
-      const newSlot2Open = isCurrentlyActive ? !settings.slot2Open : true;
-      settings = await savePortalSettings({
-        activeSlot: 2,
-        slot2Open: newSlot2Open
-      });
-      populateSettingsForms();
-      showToast(`Slot 2 is now ${newSlot2Open ? 'ACTIVE & OPEN' : 'PAUSED'} for candidates.`);
-    });
-  }
-
-  // Question Bank Slot Switchers (Tab 3)
-  const tabSlot1Btn = document.getElementById('btn-tab-slot-1');
-  if (tabSlot1Btn) {
-    tabSlot1Btn.addEventListener('click', async () => {
-      currentManagingSlot = 1;
       await refreshQuestionsSlotView();
-    });
-  }
-
-  const tabSlot2Btn = document.getElementById('btn-tab-slot-2');
-  if (tabSlot2Btn) {
-    tabSlot2Btn.addEventListener('click', async () => {
-      currentManagingSlot = 2;
-      await refreshQuestionsSlotView();
+      showToast(`Created & Activated assessment drive: "${title}" (${driveId})!`);
     });
   }
 
@@ -545,44 +569,121 @@ function populateSettingsForms() {
     openBtn.className = 'btn btn-danger btn-sm';
   }
 
-  // Update Slot Controls
+  // Update Dynamic Slot Controls
+  const totalSlots = Math.max(2, Number(settings.totalSlots || 2));
   const activeSlot = Number(settings.activeSlot || 1);
-  const slot1Open = settings.slot1Open !== false;
-  const slot2Open = settings.slot2Open !== false;
+  const statusMap = settings.slotStatusMap || {
+    "1": settings.slot1Open !== false,
+    "2": settings.slot2Open !== false
+  };
 
-  const slot1Btn = document.getElementById('btn-select-slot-1');
-  const slot2Btn = document.getElementById('btn-select-slot-2');
-  const s1Lbl = document.getElementById('slot1-state-label');
-  const s2Lbl = document.getElementById('slot2-state-label');
-
-  if (s1Lbl) s1Lbl.textContent = slot1Open ? 'ON' : 'OFF';
-  if (s2Lbl) s2Lbl.textContent = slot2Open ? 'ON' : 'OFF';
-
-  if (slot1Btn) {
-    slot1Btn.className = activeSlot === 1
-      ? (slot1Open ? 'btn btn-primary btn-sm' : 'btn btn-danger btn-sm')
-      : 'btn btn-secondary btn-sm';
+  const quickSlotsContainer = document.getElementById('quick-slot-buttons-container');
+  if (quickSlotsContainer) {
+    quickSlotsContainer.innerHTML = '';
+    for (let s = 1; s <= totalSlots; s++) {
+      const isOpen = statusMap[String(s)] !== false;
+      const isActive = activeSlot === s;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = isActive
+        ? (isOpen ? 'btn btn-primary btn-sm' : 'btn btn-danger btn-sm')
+        : 'btn btn-secondary btn-sm';
+      btn.style.padding = '4px 10px';
+      btn.style.fontSize = '12px';
+      btn.innerHTML = `Slot ${s} (<b>${isOpen ? 'ON' : 'OFF'}</b>)`;
+      btn.title = `Click to switch to Slot ${s} or toggle ON/OFF`;
+      btn.onclick = async () => {
+        const newStatus = isActive ? !isOpen : true;
+        statusMap[String(s)] = newStatus;
+        const patch = {
+          activeSlot: s,
+          totalSlots,
+          slotStatusMap: statusMap
+        };
+        if (s === 1) patch.slot1Open = newStatus;
+        if (s === 2) patch.slot2Open = newStatus;
+        settings = await savePortalSettings(patch);
+        populateSettingsForms();
+        showToast(`Slot ${s} is now ${newStatus ? 'ACTIVE & OPEN' : 'PAUSED'} for candidates.`);
+      };
+      quickSlotsContainer.appendChild(btn);
+    }
   }
-  if (slot2Btn) {
-    slot2Btn.className = activeSlot === 2
-      ? (slot2Open ? 'btn btn-primary btn-sm' : 'btn btn-danger btn-sm')
-      : 'btn btn-secondary btn-sm';
+
+  // Dynamic CSV Slot Export Buttons
+  const dynExportContainer = document.getElementById('dynamic-slot-export-buttons');
+  if (dynExportContainer) {
+    dynExportContainer.innerHTML = '';
+    for (let s = 1; s <= totalSlots; s++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary btn-sm';
+      btn.textContent = `⬇ Slot ${s} CSV`;
+      btn.onclick = () => {
+        const slotSubs = allSubmissions.filter((sub) => Number(sub.slot || 1) === s);
+        if (!slotSubs.length) return showToast(`No Slot ${s} submissions to export yet.`, true);
+        const csv = buildDetailedResultsCsv(slotSubs);
+        downloadTextFile(csv, `UTS_Placement_Results_Slot${s}_${todayStamp()}.csv`, 'text/csv;charset=utf-8');
+      };
+      dynExportContainer.appendChild(btn);
+    }
   }
 
   const slotBadge = document.getElementById('active-slot-badge');
   if (slotBadge) {
-    slotBadge.textContent = `Slot ${activeSlot} Active for Students (${activeSlot === 1 ? (slot1Open ? 'OPEN' : 'PAUSED') : (slot2Open ? 'OPEN' : 'PAUSED')})`;
+    const curOpen = statusMap[String(activeSlot)] !== false;
+    slotBadge.textContent = `Slot ${activeSlot} Active for Students (${curOpen ? 'OPEN' : 'PAUSED'})`;
   }
 
-  // Populate Clock Unlocks
-  const s1DateInput = document.getElementById('cfg-slot1-unlock');
-  if (s1DateInput) {
-    s1DateInput.value = settings.slot1UnlockAt ? new Date(settings.slot1UnlockAt).toISOString().slice(0, 16) : '';
+  // Clock Unlocks Form
+  const clockContainer = document.getElementById('clock-unlocks-container');
+  if (clockContainer) {
+    clockContainer.innerHTML = '';
+    const unlockMap = settings.slotUnlockMap || {
+      "1": settings.slot1UnlockAt || '',
+      "2": settings.slot2UnlockAt || ''
+    };
+    for (let s = 1; s <= totalSlots; s++) {
+      const wrap = document.createElement('div');
+      wrap.style.display = 'flex';
+      wrap.style.alignItems = 'center';
+      wrap.style.gap = '6px';
+      const curVal = unlockMap[String(s)] ? new Date(unlockMap[String(s)]).toISOString().slice(0, 16) : '';
+      wrap.innerHTML = `
+        <label style="font-size:12px; font-weight:700; color:var(--navy-primary);" for="cfg-slot${s}-unlock">Slot ${s}:</label>
+        <input type="datetime-local" id="cfg-slot${s}-unlock" value="${curVal}" style="padding:5px 8px; font-size:12px; border-radius:8px; border:1px solid var(--navy-primary);" />
+      `;
+      clockContainer.appendChild(wrap);
+    }
+    const saveSchedBtn = document.createElement('button');
+    saveSchedBtn.type = 'button';
+    saveSchedBtn.className = 'btn btn-primary btn-sm';
+    saveSchedBtn.style.padding = '5px 12px';
+    saveSchedBtn.style.fontSize = '12px';
+    saveSchedBtn.textContent = 'Save Schedule';
+    saveSchedBtn.onclick = async () => {
+      const updatedUnlockMap = {};
+      for (let s = 1; s <= totalSlots; s++) {
+        const inp = document.getElementById(`cfg-slot${s}-unlock`);
+        if (inp && inp.value) {
+          updatedUnlockMap[String(s)] = new Date(inp.value).toISOString();
+        } else {
+          updatedUnlockMap[String(s)] = '';
+        }
+      }
+      settings = await savePortalSettings({
+        slotUnlockMap: updatedUnlockMap,
+        slot1UnlockAt: updatedUnlockMap["1"] || '',
+        slot2UnlockAt: updatedUnlockMap["2"] || ''
+      });
+      populateSettingsForms();
+      showToast('Saved slot scheduled clock unlock settings.');
+    };
+    clockContainer.appendChild(saveSchedBtn);
   }
-  const s2DateInput = document.getElementById('cfg-slot2-unlock');
-  if (s2DateInput) {
-    s2DateInput.value = settings.slot2UnlockAt ? new Date(settings.slot2UnlockAt).toISOString().slice(0, 16) : '';
-  }
+
+  // Update Dynamic Share Links Box
+  renderAssessmentShareLinks();
 
   document.getElementById('quick-result-visibility').value =
     settings.resultVisibility || 'score_only';
@@ -620,11 +721,18 @@ function renderKPIs() {
     return Date.now() - t < 120000;
   });
 
-  document.getElementById('kpi-total-sub').textContent = String(total);
-  document.getElementById('kpi-live-active').textContent = String(freshLive.length);
-  document.getElementById('kpi-avg-score').textContent = `${avg}%`;
-  document.getElementById('kpi-auto-sub').textContent = String(autoCount);
-  document.getElementById('kpi-warnings').textContent = String(warnTotal);
+  const retakeBadge = document.getElementById('tab-retake-badge');
+  const retakeReqs = allSubmissions.filter((s) => s.retakeRequested);
+  if (retakeBadge) retakeBadge.textContent = String(retakeReqs.length);
+
+  const subCountBadge = document.getElementById('tab-sub-count');
+  if (subCountBadge) subCountBadge.textContent = String(total);
+
+  // Render Retake Requests Table (Tab 2)
+  renderRetakeRequestsTable(retakeReqs);
+
+  // Render Assessment Drives Table (Tab 3)
+  renderAssessmentDrivesTable();
 }
 
 function renderLiveSessions() {
@@ -671,6 +779,8 @@ function renderSubmissionsTable() {
   const sortMode = document.getElementById('sub-sort-select') ? document.getElementById('sub-sort-select').value : 'time_desc';
 
   let filtered = allSubmissions.filter((s) => {
+    if (filter === 'retake_requested' && !s.retakeRequested) return false;
+    if (filter === 'premature' && !s.prematureExit) return false;
     if (filter === 'slot1' && Number(s.slot || 1) !== 1) return false;
     if (filter === 'slot2' && Number(s.slot || 1) !== 2) return false;
     if (filter === 'autosubmit' && !s.isAutoSubmitted) return false;
@@ -721,11 +831,18 @@ function renderSubmissionsTable() {
     const mins = Math.floor((s.elapsedSeconds || 0) / 60);
     const secs = (s.elapsedSeconds || 0) % 60;
 
-    const secTag = s.isAutoSubmitted
+    let secTag = s.isAutoSubmitted
       ? `<span class="status-tag bad" title="${escapeHtml(s.submitReason)}">Auto-Submit (${s.warningsUsed || 0}W)</span>`
       : Number(s.warningsUsed || 0) > 0
       ? `<span class="status-tag warn">${s.warningsUsed}/${s.maxWarnings ?? 2} Warnings</span>`
       : `<span class="status-tag ok">Clean (0W)</span>`;
+
+    if (s.retakeRequested) {
+      secTag += `<br><span style="display:inline-block; margin-top:3px; padding:2px 6px; border-radius:4px; background:#fef2f2; border:1px solid #dc2626; color:#991b1b; font-size:10.5px; font-weight:800;">🚨 Retake Requested</span>`;
+    }
+    if (s.prematureExit) {
+      secTag += `<br><span style="display:inline-block; margin-top:3px; padding:2px 6px; border-radius:4px; background:#fff7ed; border:1px solid #ea580c; color:#c2410c; font-size:10.5px; font-weight:700;">Premature Exit</span>`;
+    }
 
     tr.innerHTML = `
       <td>
@@ -825,24 +942,231 @@ function openSubmissionModal(s) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Question Bank Editor (Tab 3: Slot 1 & Slot 2)                              */
+/* Retake Requests Management Table (Tab 2)                                   */
+/* -------------------------------------------------------------------------- */
+
+function renderRetakeRequestsTable(retakeList) {
+  const tbody = document.getElementById('retake-requests-tbody');
+  const countEl = document.getElementById('retake-requests-count');
+  if (countEl) countEl.textContent = String(retakeList.length);
+  if (!tbody) return;
+
+  if (!retakeList.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center; color:var(--text-muted); padding:26px;">
+          No pending retake requests.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  retakeList.forEach((s) => {
+    const tr = document.createElement('tr');
+    tr.style.background = '#fffbeb';
+    const reqDate = s.retakeRequestedAt ? new Date(s.retakeRequestedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-';
+
+    tr.innerHTML = `
+      <td>
+        <div style="font-weight:700; color:#92400e;">${escapeHtml(s.fullName)}</div>
+        <div style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(s.email)}</div>
+        <div style="font-size:11px; color:var(--text-muted);">${escapeHtml(s.phone || '')}</div>
+      </td>
+      <td>
+        <div style="font-family:monospace; font-weight:800; color:#3b0764;">${escapeHtml(s.registerNumber)}</div>
+        <div style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(s.year || 'Candidate')}</div>
+      </td>
+      <td>
+        <strong style="color:#5b21b6;">Slot ${s.slot || 1}</strong>
+        <div style="font-size:12px; font-weight:700;">Score: ${s.score}/${s.totalQuestions} (${s.percentage}%)</div>
+      </td>
+      <td>
+        <div style="font-size:12.5px; font-weight:700; color:#b45309;">
+          ${escapeHtml(s.retakeRequestReason || s.submitReason || 'Interrupted session')}
+        </div>
+        <div style="font-size:11px; color:#78350f;">Auto-Submit: ${s.submitReason || '-'} (${s.warningsUsed || 0} Warnings)</div>
+      </td>
+      <td style="font-size:12.5px; font-weight:600;">${reqDate}</td>
+      <td>
+        <button type="button" class="btn btn-primary btn-sm act-approve-retake" style="background:#059669; border-color:#047857; font-weight:700;">
+          ✓ Approve Retake
+        </button>
+      </td>
+    `;
+
+    tr.querySelector('.act-approve-retake').addEventListener('click', async () => {
+      if (!confirm(`Approve retake for ${s.fullName} (${s.registerNumber})? This clears their current submission attempt and unlocks access immediately.`)) return;
+      await allowStudentRetake(s.id);
+      showToast(`Approved retake for ${s.fullName}! Student can now re-enter the assessment.`);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Assessment Drives Table & Dynamic Links (Tab 3)                            */
+/* -------------------------------------------------------------------------- */
+
+function renderAssessmentShareLinks() {
+  const origin = window.location.origin;
+  const currentSlot = Number(settings?.activeSlot || 1);
+  const totalSlots = Math.max(2, Number(settings?.totalSlots || 2));
+
+  const mainInput = document.getElementById('share-link-main');
+  if (mainInput) mainInput.value = `${origin}/`;
+
+  const slotContainer = document.getElementById('dynamic-slot-links-container');
+  if (slotContainer) {
+    slotContainer.innerHTML = '';
+    for (let s = 1; s <= totalSlots; s++) {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.gap = '10px';
+      row.style.alignItems = 'center';
+      row.style.flexWrap = 'wrap';
+
+      const directUrl = `${origin}/?slot=${s}`;
+      row.innerHTML = `
+        <span style="font-size:12.5px; font-weight:700; width:130px; color:#334155;">Direct Slot ${s} Link:</span>
+        <input type="text" id="share-link-slot-${s}" value="${directUrl}" readonly style="flex:1; min-width:240px; padding:7px 10px; font-size:12.5px; background:#fff; border:1px solid #cbd5e1; border-radius:6px;" />
+        <button type="button" class="btn btn-secondary btn-sm copy-btn" data-target="share-link-slot-${s}">Copy Link</button>
+        <a href="${directUrl}" target="_blank" class="btn btn-secondary btn-sm">Preview ↗</a>
+      `;
+      slotContainer.appendChild(row);
+    }
+  }
+
+  // Bind copy buttons
+  document.querySelectorAll('.copy-btn').forEach((btn) => {
+    btn.onclick = () => {
+      const targetId = btn.getAttribute('data-target');
+      const input = document.getElementById(targetId);
+      if (input) {
+        input.select();
+        navigator.clipboard.writeText(input.value).then(() => {
+          showToast('Assessment link copied to clipboard!');
+        }).catch(() => {
+          document.execCommand('copy');
+          showToast('Assessment link copied to clipboard!');
+        });
+      }
+    };
+  });
+}
+
+function renderAssessmentDrivesTable() {
+  const tbody = document.getElementById('assessment-drives-tbody');
+  if (!tbody) return;
+  const drives = settings?.assessmentDrives || [];
+  const currentDriveId = settings?.assessmentId || 'default';
+  const origin = window.location.origin;
+
+  if (!drives.length) {
+    // Show active default drive
+    tbody.innerHTML = `
+      <tr>
+        <td>
+          <div style="font-weight:700; color:#0f172a;">${escapeHtml(settings?.quizTitle || 'Placement Drive Assessment')}</div>
+          <div style="font-size:11.5px; color:var(--text-muted);">ID: ${escapeHtml(currentDriveId)}</div>
+        </td>
+        <td><b>${settings?.totalSlots || 2} Slots</b></td>
+        <td><span class="status-tag ok">ACTIVE NOW</span></td>
+        <td>Default Drive</td>
+        <td>
+          <input type="text" readonly value="${origin}/" style="padding:4px 8px; font-size:11.5px; width:220px; background:#fff; border:1px solid #cbd5e1; border-radius:4px;" />
+        </td>
+        <td>
+          <span style="font-size:12px; color:#047857; font-weight:700;">● Active</span>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  drives.forEach((d) => {
+    const isActive = d.id === currentDriveId;
+    const tr = document.createElement('tr');
+    if (isActive) tr.style.background = '#f0fdf4';
+
+    tr.innerHTML = `
+      <td>
+        <div style="font-weight:700; color:#0f172a;">${escapeHtml(d.title)}</div>
+        <div style="font-size:11.5px; color:var(--text-muted);">ID: ${escapeHtml(d.id)}</div>
+      </td>
+      <td><b>${d.slotsCount || 2} Slots</b> (${d.durationMinutes || 45}m each)</td>
+      <td>${isActive ? '<span class="status-tag ok">ACTIVE NOW</span>' : '<span class="status-tag warn">INACTIVE</span>'}</td>
+      <td style="font-size:12px;">${d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '-'}</td>
+      <td>
+        <input type="text" readonly value="${origin}/?drive=${d.id}" style="padding:4px 8px; font-size:11.5px; width:220px; background:#fff; border:1px solid #cbd5e1; border-radius:4px;" />
+      </td>
+      <td>
+        ${
+          !isActive
+            ? `<button type="button" class="btn btn-primary btn-sm act-activate-drive" style="padding:4px 8px; font-size:11.5px;">Switch to this Drive</button>`
+            : `<span style="font-size:12px; color:#047857; font-weight:700;">● Current Active</span>`
+        }
+      </td>
+    `;
+
+    const actBtn = tr.querySelector('.act-activate-drive');
+    if (actBtn) {
+      actBtn.onclick = async () => {
+        const statusMap = {};
+        for (let i = 1; i <= (d.slotsCount || 2); i++) statusMap[String(i)] = true;
+        settings = await savePortalSettings({
+          assessmentId: d.id,
+          quizTitle: d.title,
+          totalSlots: d.slotsCount || 2,
+          activeSlot: 1,
+          slotStatusMap: statusMap,
+          durationMinutes: d.durationMinutes || 45
+        });
+        populateSettingsForms();
+        await refreshQuestionsSlotView();
+        showToast(`Switched active assessment drive to: "${d.title}"!`);
+      };
+    }
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Question Bank Editor (Dynamic Slots)                                       */
 /* -------------------------------------------------------------------------- */
 
 async function refreshQuestionsSlotView() {
   questions = await loadQuestions(currentManagingSlot);
+  const totalSlots = Math.max(2, Number(settings?.totalSlots || 2));
 
-  const slot1Questions = await loadQuestions(1);
-  const slot2Questions = await loadQuestions(2);
+  // Render Question Bank Slot switcher tabs dynamically
+  const qbankSlotContainer = document.getElementById('qbank-slot-tabs-container');
+  if (qbankSlotContainer) {
+    qbankSlotContainer.innerHTML = '';
+    for (let s = 1; s <= totalSlots; s++) {
+      const tabBtn = document.createElement('button');
+      tabBtn.type = 'button';
+      tabBtn.className = currentManagingSlot === s ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+      tabBtn.style.fontSize = '13px';
+      tabBtn.style.fontWeight = '700';
+      tabBtn.innerHTML = `Slot ${s} (<span id="slot${s}-count">...</span>)`;
+      tabBtn.onclick = async () => {
+        currentManagingSlot = s;
+        await refreshQuestionsSlotView();
+      };
+      qbankSlotContainer.appendChild(tabBtn);
 
-  const s1CountEl = document.getElementById('slot1-count');
-  if (s1CountEl) s1CountEl.textContent = String(slot1Questions.length);
-  const s2CountEl = document.getElementById('slot2-count');
-  if (s2CountEl) s2CountEl.textContent = String(slot2Questions.length);
-
-  const slot1TabBtn = document.getElementById('btn-tab-slot-1');
-  const slot2TabBtn = document.getElementById('btn-tab-slot-2');
-  if (slot1TabBtn) slot1TabBtn.className = currentManagingSlot === 1 ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
-  if (slot2TabBtn) slot2TabBtn.className = currentManagingSlot === 2 ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+      // Async fetch count
+      loadQuestions(s).then((qList) => {
+        const countSpan = document.getElementById(`slot${s}-count`);
+        if (countSpan) countSpan.textContent = String(qList.length);
+      });
+    }
+  }
 
   const titleEl = document.getElementById('current-managing-slot-title');
   if (titleEl) titleEl.textContent = `Slot ${currentManagingSlot}`;

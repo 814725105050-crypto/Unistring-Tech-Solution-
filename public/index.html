@@ -399,6 +399,22 @@
 
         <div id="result-autosubmit-alert" class="alert alert-error hidden" style="text-align: left;"></div>
 
+        <!-- Request Retake Section for Interrupted / Auto-submitted Students -->
+        <div id="result-retake-section" class="hidden" style="margin-top: 18px; padding: 16px; background: #fff7ed; border: 1.5px solid #f97316; border-radius: 12px; text-align: left;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <strong style="color: #9a3412; font-size: 14.5px;">Was your assessment interrupted or auto-submitted?</strong>
+              <p style="margin: 4px 0 0; font-size: 12.5px; color: #7c2d12;">
+                You can request a retake directly to the administrator. Once approved, you can take the assessment again.
+              </p>
+            </div>
+            <button type="button" id="btn-request-retake" class="btn btn-primary btn-sm" style="background:#ea580c; border-color:#c2410c;">
+              Request Retake from Admin ✉
+            </button>
+          </div>
+          <div id="retake-request-status" class="hidden" style="margin-top: 10px; font-size: 13px; font-weight: 700; color: #15803d;"></div>
+        </div>
+
         <!-- Optional Answer Review (only shown when Admin sets resultVisibility === 'full_answers') -->
         <div id="result-answers-review" class="hidden" style="text-align: left; margin-top: 22px;">
           <h3 style="font-size: 16px; margin-bottom: 12px; color: #3b0764;">Detailed Answer Review</h3>

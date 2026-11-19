@@ -289,8 +289,8 @@ export async function subscribeToPortalSettings(onSettings) {
 
 export function getLocalQuestions(slot = 1) {
   try {
-    const key = slot === 2 ? STORAGE_KEYS.QUESTIONS_SLOT2 : STORAGE_KEYS.QUESTIONS_SLOT1;
-    const raw = localStorage.getItem(key) || (slot === 1 ? localStorage.getItem(STORAGE_KEYS.QUESTIONS) : null);
+    const key = `uts_questions_slot${slot}_v1`;
+    const raw = localStorage.getItem(key) || (Number(slot) === 1 ? localStorage.getItem(STORAGE_KEYS.QUESTIONS) : null);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -304,15 +304,15 @@ export async function loadQuestions(slot = null) {
     const s = await loadPortalSettings();
     slot = Number(s.activeSlot || 1);
   }
-  const slotDocId = slot === 2 ? 'questions_slot2' : 'questions_slot1';
-  const localKey = slot === 2 ? STORAGE_KEYS.QUESTIONS_SLOT2 : STORAGE_KEYS.QUESTIONS_SLOT1;
+  const slotDocId = `questions_slot${slot}`;
+  const localKey = `uts_questions_slot${slot}_v1`;
 
   const ctx = await initBackend();
   if (ctx.mode === 'firebase' && firestoreCloudHealthy) {
     try {
       const { doc, getDoc } = ctx.fsMod;
       let snap = await getDoc(doc(ctx.db, 'portal_config', slotDocId));
-      if (!snap.exists() && slot === 1) {
+      if (!snap.exists() && Number(slot) === 1) {
         // Fallback to legacy single questions doc
         snap = await getDoc(doc(ctx.db, 'portal_config', 'questions'));
       }
@@ -329,8 +329,8 @@ export async function loadQuestions(slot = null) {
 
 export async function saveQuestions(questionsArray, slot = 1) {
   const slotNum = Number(slot || 1);
-  const slotDocId = slotNum === 2 ? 'questions_slot2' : 'questions_slot1';
-  const localKey = slotNum === 2 ? STORAGE_KEYS.QUESTIONS_SLOT2 : STORAGE_KEYS.QUESTIONS_SLOT1;
+  const slotDocId = `questions_slot${slotNum}`;
+  const localKey = `uts_questions_slot${slotNum}_v1`;
 
   localStorage.setItem(localKey, JSON.stringify(questionsArray));
   if (slotNum === 1) {
@@ -697,6 +697,32 @@ export async function verifyCertificateDirect(certificateId) {
     certificateId: searchedId,
     verifiedAt: nowStamp
   };
+}
+
+export async function requestStudentRetake(submissionId, reason = '') {
+  const ctx = await initBackend();
+  const updateData = {
+    retakeRequested: true,
+    retakeRequestReason: String(reason || 'Candidate requested retake due to auto-submission/interruption.').trim(),
+    retakeRequestedAt: new Date().toISOString()
+  };
+
+  const local = getLocalSubmissions();
+  const idx = local.findIndex((item) => item.id === submissionId);
+  if (idx >= 0) {
+    local[idx] = { ...local[idx], ...updateData };
+    saveLocalSubmissions(local);
+  }
+
+  if (ctx.mode === 'firebase') {
+    try {
+      const { doc, updateDoc } = ctx.fsMod;
+      await updateDoc(doc(ctx.db, 'submissions', submissionId), updateData);
+    } catch (err) {
+      console.warn('Firestore retake request sync error:', err);
+    }
+  }
+  return updateData;
 }
 
 export async function allowStudentRetake(submissionId) {

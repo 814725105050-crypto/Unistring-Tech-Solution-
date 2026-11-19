@@ -137,13 +137,19 @@
     <!-- Navigation Tabs -->
     <nav class="admin-tabs">
       <button type="button" class="tab-btn active" data-tab="submissions">
-        1. Live Monitor &amp; Submissions
+        1. Live Monitor &amp; Submissions (<span id="tab-sub-count">0</span>)
+      </button>
+      <button type="button" class="tab-btn" data-tab="retake-requests">
+        2. Retake Requests (<span id="tab-retake-badge" style="color:#ef4444; font-weight:800;">0</span>)
+      </button>
+      <button type="button" class="tab-btn" data-tab="assessments">
+        3. Assessments &amp; Drives
       </button>
       <button type="button" class="tab-btn" data-tab="settings">
-        2. Assessment &amp; Branding Settings
+        4. Assessment &amp; Branding Settings
       </button>
       <button type="button" class="tab-btn" data-tab="questions">
-        3. Question Bank (<span id="tab-qbank-count">0</span>)
+        5. Question Bank (<span id="tab-qbank-count">0</span>)
       </button>
     </nav>
 
@@ -163,12 +169,10 @@
 
             <!-- Slot Selector & Quick Toggles -->
             <div style="display:flex; align-items:center; gap:8px; padding:4px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">
-              <span style="font-weight:600; color:#0f172a; font-size:13px;">Active Slot:</span>
-              <button type="button" id="btn-select-slot-1" class="btn btn-primary btn-sm" style="padding:4px 10px; font-size:12px;">
-                Slot 1 (<span id="slot1-state-label">ON</span>)
-              </button>
-              <button type="button" id="btn-select-slot-2" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:12px;">
-                Slot 2 (<span id="slot2-state-label">OFF</span>)
+              <span style="font-weight:600; color:#0f172a; font-size:13px;">Slots Control:</span>
+              <div id="quick-slot-buttons-container" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"></div>
+              <button type="button" id="btn-add-new-slot" class="btn btn-secondary btn-sm" style="padding:4px 8px; font-size:11px;" title="Add another slot to this assessment">
+                + Add Slot
               </button>
             </div>
 
@@ -182,16 +186,11 @@
             </div>
           </div>
 
-          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; flex-wrap:wrap; gap:8px;" id="csv-export-buttons-container">
             <button type="button" id="btn-export-full-csv" class="btn btn-secondary btn-sm">
               ⬇ Export All Results CSV
             </button>
-            <button type="button" id="btn-export-slot1-csv" class="btn btn-secondary btn-sm">
-              ⬇ Slot 1 CSV
-            </button>
-            <button type="button" id="btn-export-slot2-csv" class="btn btn-secondary btn-sm">
-              ⬇ Slot 2 CSV
-            </button>
+            <div id="dynamic-slot-export-buttons" style="display:inline-flex; gap:6px; flex-wrap:wrap;"></div>
           </div>
         </div>
       </div>
@@ -219,9 +218,11 @@
               style="padding:9px 12px; border-radius:8px; background:#fff; border:1px solid #cbd5e1; color:#0f172a; font-size:13.5px; font-weight:600;"
             >
               <option value="all">All Submissions</option>
+              <option value="retake_requested">🚨 Retake Requested Only</option>
               <option value="slot1">Slot 1 Only</option>
               <option value="slot2">Slot 2 Only</option>
               <option value="autosubmit">Auto-Submitted Only</option>
+              <option value="premature">Premature Exit / Early Leave</option>
               <option value="warned">Had Security Warnings (≥1)</option>
             </select>
 
@@ -266,7 +267,98 @@
     </section>
 
     <!-- ===================================================================
-         TAB 2: SETTINGS & LOGO BRANDING
+         TAB 2: RETAKE REQUESTS & PERMISSION APPROVALS
+         =================================================================== -->
+    <section id="tab-retake-requests" class="admin-tab-panel hidden">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+          <div>
+            <h3 style="margin:0; font-size:18px; color:#0f172a; font-weight:700;">
+              Student Retake Requests (<span id="retake-requests-count">0</span>)
+            </h3>
+            <p style="margin:3px 0 0; font-size:13px; color:var(--text-muted);">
+              Students whose assessments were auto-submitted or interrupted can submit a request from their screen. Review and grant retake permission with 1-click.
+            </p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Candidate ID &amp; Batch</th>
+                <th>Score &amp; Slot</th>
+                <th>Interruption Reason / Request Note</th>
+                <th>Requested At</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="retake-requests-tbody">
+              <tr>
+                <td colspan="6" style="text-align:center; color:var(--text-muted); padding:26px;">
+                  No pending retake requests.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         TAB 3: ASSESSMENTS & DRIVES MANAGER (CREATE, GENERATE LINKS, DASHBOARD)
+         =================================================================== -->
+    <section id="tab-assessments" class="admin-tab-panel hidden">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; padding-bottom:14px; border-bottom:1.5px solid #e2e8f0;">
+          <div>
+            <h3 style="margin:0; font-size:18px; color:#0f172a; font-weight:700;">Multi-Assessment Management &amp; Custom Links</h3>
+            <p style="margin:3px 0 0; font-size:13px; color:var(--text-muted);">
+              Create distinct assessment drives (e.g. Technical Round 1, Aptitude Drive B), generate unique candidate direct links, and monitor results.
+            </p>
+          </div>
+          <button type="button" id="btn-create-drive-modal" class="btn btn-primary btn-sm">
+            + Create New Assessment Drive
+          </button>
+        </div>
+
+        <!-- Current Active Assessment Link Box -->
+        <div class="glass3d card" style="padding:16px 18px; margin-bottom:18px; border:1px solid rgba(41,50,98,0.22); background:#f8fafc;">
+          <h4 style="margin:0 0 8px; font-size:15px; color:#0f172a; font-weight:700;">Candidate Assessment Links (Copy &amp; Share)</h4>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <span style="font-size:12.5px; font-weight:700; width:130px; color:#334155;">General Portal Link:</span>
+              <input type="text" id="share-link-main" readonly style="flex:1; min-width:240px; padding:7px 10px; font-size:12.5px; background:#fff; border:1px solid #cbd5e1; border-radius:6px;" />
+              <button type="button" class="btn btn-secondary btn-sm copy-btn" data-target="share-link-main">Copy Link</button>
+              <a href="/" target="_blank" class="btn btn-primary btn-sm">Open ↗</a>
+            </div>
+            <div id="dynamic-slot-links-container" style="display:flex; flex-direction:column; gap:8px;"></div>
+          </div>
+        </div>
+
+        <!-- Existing Drives Table -->
+        <h4 style="margin:16px 0 10px; font-size:15px; color:#0f172a; font-weight:700;">Assessment Drives List</h4>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Drive Name</th>
+                <th>Slots Count</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Candidate Direct Link</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="assessment-drives-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         TAB 4: SETTINGS & LOGO BRANDING
          =================================================================== -->
     <section id="tab-settings" class="admin-tab-panel hidden">
 
@@ -367,20 +459,15 @@
     </section>
 
     <!-- ===================================================================
-         TAB 3: QUESTION BANK MANAGER (SLOT 1 & SLOT 2 UPLOAD & MANAGEMENT)
+         TAB 5: QUESTION BANK MANAGER (SLOTS UPLOAD & MANAGEMENT)
          =================================================================== -->
     <section id="tab-questions" class="admin-tab-panel hidden">
       <div class="card">
         <!-- Slot Switcher & Optional Scheduled Clock Unlock for Question Bank -->
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; padding-bottom:14px; border-bottom:1.5px solid rgba(41,50,98,0.18);">
-          <div style="display:flex; gap:10px; align-items:center;">
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
             <span style="font-weight:800; color:var(--navy-deep); font-size:15px;">Managing Bank:</span>
-            <button type="button" id="btn-tab-slot-1" class="btn btn-gold btn-sm" style="font-size:13px; font-weight:700;">
-              Slot 1 Questions (<span id="slot1-count">0</span>)
-            </button>
-            <button type="button" id="btn-tab-slot-2" class="btn btn-secondary btn-sm" style="font-size:13px; font-weight:700;">
-              Slot 2 Questions (<span id="slot2-count">0</span>)
-            </button>
+            <div id="qbank-slot-tabs-container" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
             <span id="active-slot-badge" class="hero-chip" style="margin:0; font-size:12px;">Slot 1 Active for Students</span>
@@ -391,22 +478,10 @@
         <div class="glass3d card" style="padding:14px 16px; margin-bottom:18px; border:1px solid rgba(41,50,98,0.22);">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
             <div>
-              <strong style="color:var(--navy-deep); font-size:14px;">⏰ Optional Scheduled Clock Unlock</strong>
-              <p style="margin:2px 0 0; font-size:12px; color:var(--text-muted);">Set a date &amp; time for automatic unlock. If empty, access is controlled manually via the ON/OFF buttons.</p>
+              <strong style="color:var(--navy-deep); font-size:14px;">⏰ Optional Scheduled Clock Unlock for Slots</strong>
+              <p style="margin:2px 0 0; font-size:12px; color:var(--text-muted);">Set date &amp; time for automatic unlock. If empty, access is controlled manually via the ON/OFF buttons.</p>
             </div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-              <div style="display:flex; align-items:center; gap:6px;">
-                <label style="font-size:12px; font-weight:700; color:var(--navy-primary);" for="cfg-slot1-unlock">Slot 1:</label>
-                <input type="datetime-local" id="cfg-slot1-unlock" style="padding:5px 8px; font-size:12px; border-radius:8px; border:1px solid var(--navy-primary);" />
-              </div>
-              <div style="display:flex; align-items:center; gap:6px;">
-                <label style="font-size:12px; font-weight:700; color:var(--navy-primary);" for="cfg-slot2-unlock">Slot 2:</label>
-                <input type="datetime-local" id="cfg-slot2-unlock" style="padding:5px 8px; font-size:12px; border-radius:8px; border:1px solid var(--navy-primary);" />
-              </div>
-              <button type="button" id="btn-save-slot-unlocks" class="btn btn-primary btn-sm" style="padding:5px 12px; font-size:12px;">
-                Save Schedule
-              </button>
-            </div>
+            <div id="clock-unlocks-container" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;"></div>
           </div>
         </div>
 
@@ -456,6 +531,39 @@
         <button type="button" id="btn-close-detail-modal" class="btn btn-secondary btn-sm">Close ✕</button>
       </div>
       <div id="detail-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       CREATE NEW ASSESSMENT DRIVE MODAL
+       ===================================================================== -->
+  <div id="drive-modal" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 480px;">
+      <h3 style="margin:0 0 12px; font-size:18px; color:#0f172a; font-weight:700;">Create New Assessment Drive</h3>
+      <form id="drive-create-form">
+        <div class="form-grid">
+          <div class="field">
+            <label>Drive Name / Title <span class="req">*</span></label>
+            <input type="text" id="drive-title" placeholder="e.g. Campus Placement Round 1" required />
+          </div>
+          <div class="field">
+            <label>Unique Drive Code / ID</label>
+            <input type="text" id="drive-id" placeholder="e.g. DRIVE-A (Auto-generated if blank)" />
+          </div>
+          <div class="field">
+            <label>Initial Number of Slots</label>
+            <input type="number" id="drive-slots" min="1" max="10" value="2" required />
+          </div>
+          <div class="field">
+            <label>Time Limit per Slot (Minutes)</label>
+            <input type="number" id="drive-duration" min="5" max="180" value="45" required />
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+          <button type="button" id="btn-cancel-drive-modal" class="btn btn-secondary btn-sm">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Create &amp; Activate Drive</button>
+        </div>
+      </form>
     </div>
   </div>
 

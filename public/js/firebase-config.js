@@ -59,11 +59,16 @@ export const ADMIN_ACCESS = Object.freeze({
  */
 export const DEFAULT_PORTAL_SETTINGS = {
   quizOpen: true,
-  activeSlot: 1, // 1 | 2
+  activeSlot: 1, // 1 | 2 | 3 ...
+  totalSlots: 2, // can be dynamically configured (2, 3, 4, 5, etc.)
   slot1Open: true,
   slot2Open: false,
   slot1UnlockAt: '', // ISO datetime string or empty
   slot2UnlockAt: '', // ISO datetime string or empty
+  slotStatusMap: { "1": true, "2": false }, // map of slot -> boolean open/closed
+  slotUnlockMap: {}, // map of slot -> ISO datetime unlock
+  assessmentId: 'default', // unique assessment drive id e.g. UTS-ASSESS-2026-1
+  assessmentDrives: [], // list of created drives [{ id, title, createdAt, active }]
   quizTitle: 'Placement Drive Assessment',
   workshopName: 'Unistring Placement Assessment',
   courseDuration: 'Placement Drive',

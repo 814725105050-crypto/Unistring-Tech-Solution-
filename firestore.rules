@@ -36,7 +36,10 @@ service cloud.firestore {
         && request.resource.data.fullName is string
         && request.resource.data.score is number;
 
-      allow update: if isAuthorizedAdmin();
+      // Allow candidate to submit retake request on their own submission, or admin full update
+      allow update: if isAuthorizedAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['retakeRequested', 'retakeRequestReason', 'retakeRequestedAt'])
+      );
     }
   }
 }

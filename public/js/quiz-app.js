@@ -11,6 +11,7 @@ import {
   loadQuestions,
   recordQuizSubmission,
   removeActiveSession,
+  requestStudentRetake,
   subscribeToPortalSettings,
   upsertActiveSession
 } from './db-service.js';
@@ -114,8 +115,15 @@ function showScreen(name) {
 /* -------------------------------------------------------------------------- */
 
 async function initPortal() {
+  // Support URL parameters for direct assessment or slot targeting: ?slot=2 or ?drive=xyz
+  const urlParams = new URLSearchParams(window.location.search);
+  const requestedSlot = urlParams.get('slot');
+
   // Render immediately with fast cached/default values so students never see a delay or freeze
   settings = getLocalSettings();
+  if (requestedSlot && !isNaN(Number(requestedSlot))) {
+    settings.activeSlot = Number(requestedSlot);
+  }
   const currentSlot = Number(settings.activeSlot || 1);
   rawQuestions = getLocalQuestions(currentSlot);
 
@@ -130,6 +138,9 @@ async function initPortal() {
         loadQuestions(currentSlot)
       ]);
       settings = freshSettings;
+      if (requestedSlot && !isNaN(Number(requestedSlot))) {
+        settings.activeSlot = Number(requestedSlot);
+      }
       rawQuestions = freshQuestions;
       if (!attemptState) {
         applySettingsToLandingUI();
@@ -154,8 +165,25 @@ async function initPortal() {
 }
 
 function isSlotUnlockedNow(slotNum, settings) {
-  const isManuallyOpen = slotNum === 2 ? settings.slot2Open !== false : settings.slot1Open !== false;
-  const unlockDateStr = slotNum === 2 ? settings.slot2UnlockAt : settings.slot1UnlockAt;
+  // Support dynamic slot map or slot1Open/slot2Open legacy fields
+  let isManuallyOpen = true;
+  if (settings.slotStatusMap && settings.slotStatusMap[String(slotNum)] !== undefined) {
+    isManuallyOpen = Boolean(settings.slotStatusMap[String(slotNum)]);
+  } else if (slotNum === 2) {
+    isManuallyOpen = settings.slot2Open !== false;
+  } else if (slotNum === 1) {
+    isManuallyOpen = settings.slot1Open !== false;
+  }
+
+  // Check clock unlock
+  let unlockDateStr = '';
+  if (settings.slotUnlockMap && settings.slotUnlockMap[String(slotNum)]) {
+    unlockDateStr = settings.slotUnlockMap[String(slotNum)];
+  } else if (slotNum === 2) {
+    unlockDateStr = settings.slot2UnlockAt;
+  } else if (slotNum === 1) {
+    unlockDateStr = settings.slot1UnlockAt;
+  }
 
   if (unlockDateStr) {
     const unlockTime = new Date(unlockDateStr).getTime();
@@ -175,7 +203,7 @@ function isSlotUnlockedNow(slotNum, settings) {
   }
 
   if (!isManuallyOpen) {
-    return { unlocked: false, reason: `Slot ${slotNum} is currently paused by coordinator.` };
+    return { unlocked: false, reason: `Slot ${slotNum} is currently closed / paused by coordinator.` };
   }
   return { unlocked: true };
 }
@@ -586,7 +614,13 @@ function launchActiveQuiz() {
         attemptState.warningsUsed = warningsUsed;
         attemptState.violations = violations;
       }
-      finalizeQuizSubmission(reason, true);
+      // If student triggered auto-submit while early submission lock was active, flag as premature exit
+      const remLockSec = getRemainingSubmissionLockSec();
+      let finalReason = reason;
+      if (remLockSec > 0) {
+        finalReason = `${reason} (Premature Exit: ${Math.ceil(remLockSec / 60)}m early submission penalty)`;
+      }
+      finalizeQuizSubmission(finalReason, true);
     }
   });
   proctor.start();
@@ -1088,12 +1122,16 @@ async function finalizeQuizSubmission(submitReason = 'Manual Submit', isAutoSubm
   const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
   const elapsedSeconds = Math.max(1, Math.round((Date.now() - attemptState.startedAt) / 1000));
 
+  const remLockSec = getRemainingSubmissionLockSec();
+  const prematureExit = isAutoSubmitted && remLockSec > 0;
+
   const submissionPayload = {
     fullName: candidate.fullName,
     email: candidate.email,
     registerNumber: candidate.registerNumber,
     phone: candidate.phone,
     slot: candidate.slot || attemptState.slot || Number(settings.activeSlot || 1),
+    assessmentId: settings.assessmentId || 'default',
     department: FIXED_DEPARTMENT,
     year: candidate.year,
     college: FIXED_COLLEGE,
@@ -1107,6 +1145,8 @@ async function finalizeQuizSubmission(submitReason = 'Manual Submit', isAutoSubm
     violations: attemptState.violations || [],
     submitReason,
     isAutoSubmitted,
+    prematureExit,
+    retakeRequested: false,
     breakdown: detailedBreakdown,
     submittedAt: new Date().toISOString()
   };
@@ -1174,6 +1214,45 @@ function renderResultScreen(record, isReturningLookup) {
     autoAlert.classList.remove('hidden');
   } else {
     autoAlert.classList.add('hidden');
+  }
+
+  // Handle Retake Request Section
+  const retakeSec = document.getElementById('result-retake-section');
+  const reqBtn = document.getElementById('btn-request-retake');
+  const reqStatus = document.getElementById('retake-request-status');
+  if (retakeSec && reqBtn) {
+    if (record.isAutoSubmitted || record.retakeRequested) {
+      retakeSec.classList.remove('hidden');
+      if (record.retakeRequested) {
+        reqBtn.disabled = true;
+        reqBtn.textContent = 'Retake Request Submitted ✓';
+        reqStatus.textContent = 'Your retake request has been submitted to the administrator and is pending approval.';
+        reqStatus.classList.remove('hidden');
+      } else {
+        reqBtn.disabled = false;
+        reqBtn.textContent = 'Request Retake from Admin ✉';
+        reqStatus.classList.add('hidden');
+        reqBtn.onclick = async () => {
+          const reason = prompt('Please explain the reason for requesting a retake (e.g., accidental tab switch, phone call):', 'Accidental window focus interruption');
+          if (reason === null) return;
+          reqBtn.disabled = true;
+          reqBtn.textContent = 'Submitting Request...';
+          try {
+            await requestStudentRetake(record.id, reason);
+            record.retakeRequested = true;
+            reqBtn.textContent = 'Retake Request Submitted ✓';
+            reqStatus.textContent = 'Your retake request has been recorded and flagged in the Admin Dashboard.';
+            reqStatus.classList.remove('hidden');
+          } catch (err) {
+            alert('Failed to send retake request: ' + err.message);
+            reqBtn.disabled = false;
+            reqBtn.textContent = 'Request Retake from Admin ✉';
+          }
+        };
+      }
+    } else {
+      retakeSec.classList.add('hidden');
+    }
   }
 
   const reviewWrap = document.getElementById('result-answers-review');

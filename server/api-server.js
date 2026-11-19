@@ -416,6 +416,39 @@ app.post('/api/assessment/retake-request', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/verify/:submissionId
+ * Public verification endpoint for QR code result checking
+ */
+app.get('/api/verify/:submissionId', async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    if (!submissionId) return res.status(400).json({ ok: false, error: 'Submission ID is required.' });
+
+    const record = await firestoreGetDoc('submissions', submissionId);
+    if (!record || !record.registerNumber) {
+      return res.status(404).json({ ok: false, error: 'Submission record not found in verified registry.' });
+    }
+
+    res.json({
+      ok: true,
+      submission: {
+        submissionId: record.submissionId || submissionId,
+        fullName: record.fullName,
+        registerNumber: record.registerNumber,
+        slot: record.slot || 1,
+        score: record.score ?? 0,
+        totalQuestions: record.totalQuestions ?? 50,
+        percentage: record.percentage ?? 0,
+        submittedAt: record.submittedAt,
+        assessmentTitle: 'Unistring Tech Solution Placement Drive'
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 /* -------------------------------------------------------------------------- */
 /* Static File Serving & Fallback                                             */
 /* -------------------------------------------------------------------------- */

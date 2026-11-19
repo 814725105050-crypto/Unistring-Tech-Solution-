@@ -2,11 +2,74 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Unistring Tech Solution · Assessment Portal</title>
-  <meta http-equiv="refresh" content="0;url=/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Assessment Certificate &amp; Result Verification · Unistring Tech Solution</title>
+  <link rel="icon" type="image/png" href="/assets/uts-logo.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
 </head>
-<body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #fffdf8; color: #240a40;">
-  <p>Redirecting to <a href="/" style="color: #6d28d9; font-weight: 700;">Unistring Tech Solution Assessment Portal</a>...</p>
+<body style="background:#f8fafc; min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px;">
+  
+  <div class="card glass3d" style="max-width:540px; width:100%; padding:28px 24px; text-align:center; border:1px solid #cbd5e1; background:#ffffff; box-shadow:0 10px 25px -5px rgba(0,0,0,0.08);">
+    <div style="margin-bottom:14px;">
+      <img src="/assets/uts-logo.png" alt="Unistring Tech Solution" style="height:55px; object-fit:contain;" />
+    </div>
+
+    <div class="hero-chip" style="margin-bottom:12px; background:#f0fdf4; color:#15803d; border-color:#bbf7d0;">
+      Official Verification Record
+    </div>
+
+    <h2 style="margin:0 0 8px; font-size:20px; color:#0f172a; font-weight:800;">Candidate Assessment Verification</h2>
+    <p style="margin:0 0 20px; font-size:13px; color:var(--text-muted);">
+      Direct tamper-proof result record authenticated by Unistring Tech Solution Proctoring Engine.
+    </p>
+
+    <div id="verify-loading" style="padding:20px; font-weight:700; color:#475569;">
+      Verifying record against Firestore Cloud Registry...
+    </div>
+
+    <div id="verify-error" class="alert alert-error hidden" style="text-align:left;"></div>
+
+    <div id="verify-result" class="hidden" style="text-align:left; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:12px;">
+        <span style="font-size:12px; font-weight:700; color:#64748b;">Verification Status:</span>
+        <span class="status-tag ok" style="font-weight:800;">VERIFIED AUTHENTIC</span>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:13px;">
+        <div>
+          <span style="color:#64748b; font-size:11.5px; display:block;">Candidate Name</span>
+          <strong id="v-name" style="color:#0f172a; font-size:14px;">-</strong>
+        </div>
+        <div>
+          <span style="color:#64748b; font-size:11.5px; display:block;">Register / Roll ID</span>
+          <strong id="v-reg" style="color:#0f172a; font-size:14px;">-</strong>
+        </div>
+        <div>
+          <span style="color:#64748b; font-size:11.5px; display:block;">Assessment Drive</span>
+          <span id="v-drive" style="font-weight:600; color:#334155;">-</span>
+        </div>
+        <div>
+          <span style="color:#64748b; font-size:11.5px; display:block;">Assessment Slot</span>
+          <span id="v-slot" style="font-weight:600; color:#334155;">-</span>
+        </div>
+        <div>
+          <span style="color:#64748b; font-size:11.5px; display:block;">Score &amp; Performance</span>
+          <strong id="v-score" style="color:#047857; font-size:15px;">-</strong>
+        </div>
+        <div>
+          <span style="color:#64748b; font-size:11.5px; display:block;">Submitted Date &amp; Time</span>
+          <span id="v-time" style="color:#334155;">-</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <a href="/" class="btn btn-primary btn-full" style="text-decoration:none;">
+        Return to Assessment Portal Home
+      </a>
+    </div>
+  </div>
+
+  <script type="module" src="/js/verify-app.js"></script>
 </body>
 </html>

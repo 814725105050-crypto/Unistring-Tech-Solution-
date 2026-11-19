@@ -51,13 +51,15 @@ export const ADMIN_ACCESS = Object.freeze({
   allowedEmails: [
     '814725105050@trp.srmtrichy.edu.in',
     '814725105014@trp.srmtrichy.edu.in',
+    'admin@unistring.com',
     'admin@unistringtech.com'
   ],
   allowedEmail: '814725105050@trp.srmtrichy.edu.in',
   allowedPasswordHashes: [
+    '7a30dae5a454c2ca1899a3b575496d3526b82ea70baf20f8e733895538d59515',
     '02ec78533da916a8a24392b408d3a32aa4a5d766bf5632b40f08a5d230c4f920'
   ],
-  passwordSha256: '02ec78533da916a8a24392b408d3a32aa4a5d766bf5632b40f08a5d230c4f920'
+  passwordSha256: '7a30dae5a454c2ca1899a3b575496d3526b82ea70baf20f8e733895538d59515'
 });
 
 /**

@@ -784,6 +784,7 @@ function populateSettingsForms() {
 
   // Update Dynamic Share Links Box
   renderAssessmentShareLinks();
+  renderAssessmentDrivesTable();
 
   document.getElementById('quick-result-visibility').value =
     settings.resultVisibility || 'score_only';
@@ -1235,6 +1236,10 @@ function renderAssessmentShareLinks() {
   const origin = window.location.origin;
   const currentSlot = Number(settings?.activeSlot || 1);
   const totalSlots = Math.max(2, Number(settings?.totalSlots || 2));
+  const statusMap = settings?.slotStatusMap || {
+    "1": settings?.slot1Open !== false,
+    "2": settings?.slot2Open !== false
+  };
 
   const mainInput = document.getElementById('share-link-main');
   if (mainInput) mainInput.value = `${origin}/`;
@@ -1249,9 +1254,17 @@ function renderAssessmentShareLinks() {
       row.style.alignItems = 'center';
       row.style.flexWrap = 'wrap';
 
+      const isOpen = statusMap[String(s)] !== false;
+      const statusBadge = isOpen
+        ? `<span style="display:inline-block; padding:2px 7px; border-radius:4px; background:#10b981; color:#fff; font-size:11px; font-weight:800;">OPEN</span>`
+        : `<span style="display:inline-block; padding:2px 7px; border-radius:4px; background:#ef4444; color:#fff; font-size:11px; font-weight:800;">CLOSED</span>`;
+
       const directUrl = `${origin}/?slot=${s}`;
       row.innerHTML = `
-        <span style="font-size:12.5px; font-weight:700; width:130px; color:#334155;">Direct Slot ${s} Link:</span>
+        <div style="width:160px; display:flex; align-items:center; gap:6px;">
+          <span style="font-size:12.5px; font-weight:700; color:#334155;">Slot ${s}:</span>
+          ${statusBadge}
+        </div>
         <input type="text" id="share-link-slot-${s}" value="${directUrl}" readonly style="flex:1; min-width:240px; padding:7px 10px; font-size:12.5px; background:#fff; border:1px solid #cbd5e1; border-radius:6px;" />
         <button type="button" class="btn btn-secondary btn-sm copy-btn" data-target="share-link-slot-${s}">Copy Link</button>
         <a href="${directUrl}" target="_blank" class="btn btn-secondary btn-sm">Preview ↗</a>
@@ -1283,10 +1296,14 @@ function renderAssessmentDrivesTable() {
   if (!tbody) return;
   const drives = settings?.assessmentDrives || [];
   const currentDriveId = settings?.assessmentId || 'default';
+  const isOverallOpen = settings?.quizOpen !== false;
   const origin = window.location.origin;
 
   if (!drives.length) {
     // Show active default drive
+    const statusTag = isOverallOpen
+      ? `<span class="status-tag ok">OPEN NOW</span>`
+      : `<span class="status-tag bad">PAUSED / CLOSED</span>`;
     tbody.innerHTML = `
       <tr>
         <td>
@@ -1294,13 +1311,13 @@ function renderAssessmentDrivesTable() {
           <div style="font-size:11.5px; color:var(--text-muted);">ID: ${escapeHtml(currentDriveId)}</div>
         </td>
         <td><b>${settings?.totalSlots || 2} Slots</b></td>
-        <td><span class="status-tag ok">ACTIVE NOW</span></td>
+        <td>${statusTag}</td>
         <td>Default Drive</td>
         <td>
           <input type="text" readonly value="${origin}/" style="padding:4px 8px; font-size:11.5px; width:220px; background:#fff; border:1px solid #cbd5e1; border-radius:4px;" />
         </td>
         <td>
-          <span style="font-size:12px; color:#047857; font-weight:700;">● Active</span>
+          <span style="font-size:12px; color:${isOverallOpen ? '#047857' : '#b91c1c'}; font-weight:700;">● ${isOverallOpen ? 'Active (Open)' : 'Paused'}</span>
         </td>
       </tr>
     `;
@@ -1309,9 +1326,18 @@ function renderAssessmentDrivesTable() {
 
   tbody.innerHTML = '';
   drives.forEach((d) => {
-    const isActive = d.id === currentDriveId;
+    const isSelectedDrive = d.id === currentDriveId;
     const tr = document.createElement('tr');
-    if (isActive) tr.style.background = '#f0fdf4';
+    if (isSelectedDrive) tr.style.background = isOverallOpen ? '#f0fdf4' : '#fff7ed';
+
+    let statusTag = '';
+    if (isSelectedDrive) {
+      statusTag = isOverallOpen
+        ? `<span class="status-tag ok">OPEN NOW</span>`
+        : `<span class="status-tag bad">PAUSED / CLOSED</span>`;
+    } else {
+      statusTag = `<span class="status-tag warn">INACTIVE</span>`;
+    }
 
     tr.innerHTML = `
       <td>
@@ -1319,16 +1345,16 @@ function renderAssessmentDrivesTable() {
         <div style="font-size:11.5px; color:var(--text-muted);">ID: ${escapeHtml(d.id)}</div>
       </td>
       <td><b>${d.slotsCount || 2} Slots</b> (${d.durationMinutes || 45}m each)</td>
-      <td>${isActive ? '<span class="status-tag ok">ACTIVE NOW</span>' : '<span class="status-tag warn">INACTIVE</span>'}</td>
+      <td>${statusTag}</td>
       <td style="font-size:12px;">${d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '-'}</td>
       <td>
         <input type="text" readonly value="${origin}/?drive=${d.id}" style="padding:4px 8px; font-size:11.5px; width:220px; background:#fff; border:1px solid #cbd5e1; border-radius:4px;" />
       </td>
       <td>
         ${
-          !isActive
+          !isSelectedDrive
             ? `<button type="button" class="btn btn-primary btn-sm act-activate-drive" style="padding:4px 8px; font-size:11.5px;">Switch to this Drive</button>`
-            : `<span style="font-size:12px; color:#047857; font-weight:700;">● Current Active</span>`
+            : `<span style="font-size:12px; color:${isOverallOpen ? '#047857' : '#b91c1c'}; font-weight:700;">● ${isOverallOpen ? 'Active (Open)' : 'Current (Paused)'}</span>`
         }
       </td>
     `;

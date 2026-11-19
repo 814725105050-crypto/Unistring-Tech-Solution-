@@ -84,7 +84,7 @@ async function enterDashboard(session) {
     settings = freshSettings;
     populateSettingsForms();
     renderSlotResponsesSelectorBar();
-  });
+    renderSubmissionsTable();
   });
 
   if (unsubData) unsubData();
@@ -664,13 +664,16 @@ function populateSettingsForms() {
       selectBtn.textContent = `Slot ${s}`;
       selectBtn.title = `Click to make Slot ${s} the active assessment for students`;
       selectBtn.onclick = async () => {
+        viewingResponseSlot = s;
         settings = await savePortalSettings({
           activeSlot: s,
           totalSlots
         });
         populateSettingsForms();
+        renderSlotResponsesSelectorBar();
+        renderSubmissionsTable();
         await refreshQuestionsSlotView();
-        showToast(`Slot ${s} is now selected as the active slot for candidates.`);
+        showToast(`Slot ${s} is now active & showing responses.`);
       };
 
       // Toggle ON/OFF Button
@@ -697,6 +700,7 @@ function populateSettingsForms() {
         settings = await savePortalSettings(patch);
         populateSettingsForms();
         renderSlotResponsesSelectorBar();
+        renderSubmissionsTable();
         showToast(`Slot ${s} is now ${newStatus ? 'OPEN' : 'CLOSED'}.`);
       };
 
@@ -817,6 +821,21 @@ function renderKPIs() {
     return Date.now() - t < 120000;
   });
 
+  const kpiTotal = document.getElementById('kpi-total-sub');
+  if (kpiTotal) kpiTotal.textContent = String(total);
+
+  const kpiLive = document.getElementById('kpi-live-active');
+  if (kpiLive) kpiLive.textContent = String(freshLive.length);
+
+  const kpiAvg = document.getElementById('kpi-avg-score');
+  if (kpiAvg) kpiAvg.textContent = `${avg}%`;
+
+  const kpiAuto = document.getElementById('kpi-auto-sub');
+  if (kpiAuto) kpiAuto.textContent = String(autoCount);
+
+  const kpiWarn = document.getElementById('kpi-warnings');
+  if (kpiWarn) kpiWarn.textContent = String(warnTotal);
+
   const retakeBadge = document.getElementById('tab-retake-badge');
   const retakeReqs = allSubmissions.filter((s) => s.retakeRequested);
   if (retakeBadge) retakeBadge.textContent = String(retakeReqs.length);
@@ -897,7 +916,8 @@ function renderSlotResponsesSelectorBar() {
     activeSlotOpen = settings?.slot1Open !== false;
   }
 
-  activeBtn.innerHTML = `★ Slot ${activeSlot} (${activeSlotOpen ? '<span style="color:#10b981;">OPEN</span>' : '<span style="color:#ef4444;">CLOSED</span>'})`;
+  const activeSlotCount = allSubmissions.filter((sub) => Number(sub.slot || 1) === activeSlot).length;
+  activeBtn.innerHTML = `★ Slot ${activeSlot} (${activeSlotCount}) · ${activeSlotOpen ? '<span style="color:#10b981; font-weight:800;">OPEN</span>' : '<span style="color:#ef4444; font-weight:800;">CLOSED</span>'}`;
   activeBtn.title = `Show responses for the currently selected assessment slot (Slot ${activeSlot} - currently ${activeSlotOpen ? 'OPEN' : 'CLOSED'})`;
   activeBtn.onclick = () => {
     viewingResponseSlot = 'active';
@@ -915,7 +935,15 @@ function renderSlotResponsesSelectorBar() {
     btn.style.padding = '4px 9px';
     btn.style.fontSize = '12px';
     const slotCount = allSubmissions.filter((sub) => Number(sub.slot || 1) === s).length;
-    btn.textContent = `Slot ${s} (${slotCount})`;
+    let sOpen = true;
+    if (settings?.slotStatusMap && settings.slotStatusMap[String(s)] !== undefined) {
+      sOpen = Boolean(settings.slotStatusMap[String(s)]);
+    } else if (s === 2) {
+      sOpen = settings?.slot2Open !== false;
+    } else if (s === 1) {
+      sOpen = settings?.slot1Open !== false;
+    }
+    btn.innerHTML = `Slot ${s} (${slotCount}) <span style="font-size:10px; opacity:0.85;">[${sOpen ? 'OPEN' : 'CLOSED'}]</span>`;
     btn.onclick = () => {
       viewingResponseSlot = s;
       renderSlotResponsesSelectorBar();

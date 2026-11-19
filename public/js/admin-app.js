@@ -23,6 +23,7 @@ let allSubmissions = [];
 let liveSessions = [];
 let unsubData = null;
 let unsubSettings = null;
+let viewingResponseSlot = 'active'; // 'active' | 'all' | 1 | 2 | 3 ...
 
 const loginView = document.getElementById('admin-login-view');
 const dashView = document.getElementById('admin-dashboard-view');
@@ -811,6 +812,9 @@ function renderKPIs() {
   // Render Retake Requests Table (Tab 2)
   renderRetakeRequestsTable(retakeReqs);
 
+  // Render Slot Responses Bar (Tab 1)
+  renderSlotResponsesSelectorBar();
+
   // Render Assessment Drives Table (Tab 3)
   renderAssessmentDrivesTable();
 }
@@ -852,13 +856,95 @@ function renderLiveSessions() {
   });
 }
 
+function renderSlotResponsesSelectorBar() {
+  const container = document.getElementById('slot-responses-selector-bar');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const totalSlots = Math.max(1, Number(settings?.totalSlots || 2));
+  const activeSlot = Number(settings?.activeSlot || 1);
+
+  // 1. "Current Open Slot" Option (Default Google Form style)
+  const activeBtn = document.createElement('button');
+  activeBtn.type = 'button';
+  const isActiveSelected = viewingResponseSlot === 'active';
+  activeBtn.className = isActiveSelected ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  activeBtn.style.padding = '4px 10px';
+  activeBtn.style.fontSize = '12px';
+  activeBtn.style.fontWeight = '700';
+  const activeSlotOpen = (settings?.slotStatusMap && settings.slotStatusMap[String(activeSlot)] !== false) || (activeSlot === 1 ? settings?.slot1Open !== false : settings?.slot2Open !== false);
+  activeBtn.innerHTML = `★ Open Slot ${activeSlot} (${activeSlotOpen ? 'OPEN' : 'CLOSED'})`;
+  activeBtn.title = `Show responses for the currently active/opened assessment slot (Slot ${activeSlot})`;
+  activeBtn.onclick = () => {
+    viewingResponseSlot = 'active';
+    renderSlotResponsesSelectorBar();
+    renderSubmissionsTable();
+  };
+  container.appendChild(activeBtn);
+
+  // 2. Individual Slot Buttons (Slot 1, Slot 2, ...)
+  for (let s = 1; s <= totalSlots; s++) {
+    const isThisSelected = viewingResponseSlot === s;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = isThisSelected ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    btn.style.padding = '4px 9px';
+    btn.style.fontSize = '12px';
+    const slotCount = allSubmissions.filter((sub) => Number(sub.slot || 1) === s).length;
+    btn.textContent = `Slot ${s} (${slotCount})`;
+    btn.onclick = () => {
+      viewingResponseSlot = s;
+      renderSlotResponsesSelectorBar();
+      renderSubmissionsTable();
+    };
+    container.appendChild(btn);
+  }
+
+  // 3. "All Slots Combined" Option
+  const allBtn = document.createElement('button');
+  allBtn.type = 'button';
+  const isAllSelected = viewingResponseSlot === 'all';
+  allBtn.className = isAllSelected ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  allBtn.style.padding = '4px 10px';
+  allBtn.style.fontSize = '12px';
+  allBtn.textContent = `All Slots (${allSubmissions.length})`;
+  allBtn.onclick = () => {
+    viewingResponseSlot = 'all';
+    renderSlotResponsesSelectorBar();
+    renderSubmissionsTable();
+  };
+  container.appendChild(allBtn);
+
+  // Update label
+  const labelEl = document.getElementById('current-viewing-slot-label');
+  if (labelEl) {
+    if (viewingResponseSlot === 'active') {
+      labelEl.textContent = `Active Assessment Slot (Slot ${activeSlot})`;
+    } else if (viewingResponseSlot === 'all') {
+      labelEl.textContent = `All Slots Combined`;
+    } else {
+      labelEl.textContent = `Slot ${viewingResponseSlot}`;
+    }
+  }
+}
+
 function renderSubmissionsTable() {
   const tbody = document.getElementById('submissions-tbody');
   const q = document.getElementById('sub-search-input').value.trim().toLowerCase();
   const filter = document.getElementById('sub-filter-select').value;
   const sortMode = document.getElementById('sub-sort-select') ? document.getElementById('sub-sort-select').value : 'time_desc';
 
+  // Determine which slot is being viewed (Google Forms style)
+  const activeSlot = Number(settings?.activeSlot || 1);
+  const targetSlot = viewingResponseSlot === 'active' ? activeSlot : viewingResponseSlot;
+
   let filtered = allSubmissions.filter((s) => {
+    // 1. Filter by viewed slot
+    if (targetSlot !== 'all') {
+      if (Number(s.slot || 1) !== Number(targetSlot)) return false;
+    }
+
+    // 2. Filter by dropdown
     if (filter === 'retake_requested' && !s.retakeRequested) return false;
     if (filter === 'premature' && !s.prematureExit) return false;
     if (filter === 'slot1' && Number(s.slot || 1) !== 1) return false;
@@ -870,6 +956,9 @@ function renderSubmissionsTable() {
     const hay = `${s.fullName} ${s.registerNumber} ${s.email} ${s.year || ''}`.toLowerCase();
     return hay.includes(q);
   });
+
+  const countPill = document.getElementById('slot-response-count-pill');
+  if (countPill) countPill.textContent = String(filtered.length);
 
   filtered.sort((a, b) => {
     switch (sortMode) {

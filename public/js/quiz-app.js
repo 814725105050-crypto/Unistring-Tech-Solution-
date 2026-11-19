@@ -283,6 +283,7 @@ function bindUIEvents() {
     const slotCheck = isSlotUnlockedNow(currentSlot, settings);
     if (!settings.quizOpen || !slotCheck.unlocked) {
       applySettingsToLandingUI();
+      showRegisterError(`Slot ${currentSlot} is currently closed or paused by administrator. Please wait for coordinator instructions.`);
       return;
     }
 

@@ -83,6 +83,8 @@ async function enterDashboard(session) {
   unsubSettings = await subscribeToPortalSettings((freshSettings) => {
     settings = freshSettings;
     populateSettingsForms();
+    renderSlotResponsesSelectorBar();
+  });
   });
 
   if (unsubData) unsubData();
@@ -682,6 +684,7 @@ function populateSettingsForms() {
         if (s === 2) patch.slot2Open = newStatus;
         settings = await savePortalSettings(patch);
         populateSettingsForms();
+        renderSlotResponsesSelectorBar();
         showToast(`Slot ${s} is now ${newStatus ? 'OPEN' : 'CLOSED'}.`);
       };
 
@@ -872,9 +875,18 @@ function renderSlotResponsesSelectorBar() {
   activeBtn.style.padding = '4px 10px';
   activeBtn.style.fontSize = '12px';
   activeBtn.style.fontWeight = '700';
-  const activeSlotOpen = (settings?.slotStatusMap && settings.slotStatusMap[String(activeSlot)] !== false) || (activeSlot === 1 ? settings?.slot1Open !== false : settings?.slot2Open !== false);
-  activeBtn.innerHTML = `★ Open Slot ${activeSlot} (${activeSlotOpen ? 'OPEN' : 'CLOSED'})`;
-  activeBtn.title = `Show responses for the currently active/opened assessment slot (Slot ${activeSlot})`;
+  
+  let activeSlotOpen = true;
+  if (settings?.slotStatusMap && settings.slotStatusMap[String(activeSlot)] !== undefined) {
+    activeSlotOpen = Boolean(settings.slotStatusMap[String(activeSlot)]);
+  } else if (activeSlot === 2) {
+    activeSlotOpen = settings?.slot2Open !== false;
+  } else if (activeSlot === 1) {
+    activeSlotOpen = settings?.slot1Open !== false;
+  }
+
+  activeBtn.innerHTML = `★ Slot ${activeSlot} (${activeSlotOpen ? '<span style="color:#10b981;">OPEN</span>' : '<span style="color:#ef4444;">CLOSED</span>'})`;
+  activeBtn.title = `Show responses for the currently selected assessment slot (Slot ${activeSlot} - currently ${activeSlotOpen ? 'OPEN' : 'CLOSED'})`;
   activeBtn.onclick = () => {
     viewingResponseSlot = 'active';
     renderSlotResponsesSelectorBar();

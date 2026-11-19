@@ -57,19 +57,20 @@
 
           <div class="field">
             <label for="admin-password">Password <span class="req">*</span></label>
-            <div style="position: relative;">
+            <div style="position: relative; display: flex; align-items: center;">
               <input
                 type="password"
                 id="admin-password"
                 placeholder="Enter administrator password"
                 autocomplete="current-password"
-                style="padding-right: 68px;"
+                style="padding-right: 74px; width: 100%;"
                 required
               />
               <button
                 type="button"
                 id="btn-toggle-pw"
-                style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; font-weight:600; border-radius:6px; padding:5px 9px; font-size:12px; cursor:pointer;"
+                aria-label="Toggle password visibility"
+                style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:#e2e8f0; border:1px solid #cbd5e1; color:#0f172a; font-weight:700; border-radius:6px; padding:6px 12px; font-size:12px; cursor:pointer; z-index:10; user-select:none;"
               >
                 Show
               </button>

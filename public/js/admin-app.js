@@ -127,11 +127,23 @@ function applyBrandingLogos(url) {
 function bindLoginEvents() {
   const pwInput = document.getElementById('admin-password');
   const toggleBtn = document.getElementById('btn-toggle-pw');
-  toggleBtn.addEventListener('click', () => {
-    const isPw = pwInput.type === 'password';
-    pwInput.type = isPw ? 'text' : 'password';
-    toggleBtn.textContent = isPw ? 'Hide' : 'Show';
-  });
+  if (toggleBtn && pwInput) {
+    const handleToggle = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      const isCurrentlyPassword = pwInput.type === 'password';
+      pwInput.setAttribute('type', isCurrentlyPassword ? 'text' : 'password');
+      toggleBtn.textContent = isCurrentlyPassword ? 'Hide' : 'Show';
+      toggleBtn.style.background = isCurrentlyPassword ? '#293262' : '#e2e8f0';
+      toggleBtn.style.color = isCurrentlyPassword ? '#ffffff' : '#0f172a';
+      pwInput.focus();
+    };
+
+    toggleBtn.addEventListener('click', handleToggle);
+    toggleBtn.addEventListener('pointerdown', (e) => e.preventDefault());
+  }
 
   document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
     e.preventDefault();

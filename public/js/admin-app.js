@@ -13,7 +13,8 @@ import {
   resetQuestionsToDefault,
   savePortalSettings,
   saveQuestions,
-  subscribeToAdminData
+  subscribeToAdminData,
+  subscribeToPortalSettings
 } from './db-service.js';
 
 let settings = null;
@@ -21,6 +22,7 @@ let questions = [];
 let allSubmissions = [];
 let liveSessions = [];
 let unsubData = null;
+let unsubSettings = null;
 
 const loginView = document.getElementById('admin-login-view');
 const dashView = document.getElementById('admin-dashboard-view');
@@ -46,6 +48,10 @@ function showLoginView() {
     unsubData();
     unsubData = null;
   }
+  if (unsubSettings) {
+    unsubSettings();
+    unsubSettings = null;
+  }
   dashView.classList.add('hidden');
   loginView.classList.remove('hidden');
 }
@@ -70,6 +76,13 @@ async function enterDashboard(session) {
   applyBrandingLogos(settings?.logoUrl);
   populateSettingsForms();
   await refreshQuestionsSlotView();
+
+  // Real-time live synchronization for settings & ON/OFF states:
+  if (unsubSettings) unsubSettings();
+  unsubSettings = await subscribeToPortalSettings((freshSettings) => {
+    settings = freshSettings;
+    populateSettingsForms();
+  });
 
   if (unsubData) unsubData();
   unsubData = await subscribeToAdminData(({ submissions, activeSessions }) => {
@@ -583,30 +596,66 @@ function populateSettingsForms() {
     for (let s = 1; s <= totalSlots; s++) {
       const isOpen = statusMap[String(s)] !== false;
       const isActive = activeSlot === s;
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = isActive
-        ? (isOpen ? 'btn btn-primary btn-sm' : 'btn btn-danger btn-sm')
-        : 'btn btn-secondary btn-sm';
-      btn.style.padding = '4px 10px';
-      btn.style.fontSize = '12px';
-      btn.innerHTML = `Slot ${s} (<b>${isOpen ? 'ON' : 'OFF'}</b>)`;
-      btn.title = `Click to switch to Slot ${s} or toggle ON/OFF`;
-      btn.onclick = async () => {
-        const newStatus = isActive ? !isOpen : true;
+
+      const group = document.createElement('div');
+      group.style.display = 'inline-flex';
+      group.style.alignItems = 'center';
+      group.style.borderRadius = '8px';
+      group.style.overflow = 'hidden';
+      group.style.border = isActive ? '2px solid #293262' : '1px solid #cbd5e1';
+      group.style.boxShadow = isActive ? '0 0 0 1.5px #293262' : 'none';
+
+      // Select Active Slot Button
+      const selectBtn = document.createElement('button');
+      selectBtn.type = 'button';
+      selectBtn.style.padding = '4px 9px';
+      selectBtn.style.fontSize = '12px';
+      selectBtn.style.fontWeight = '700';
+      selectBtn.style.border = 'none';
+      selectBtn.style.cursor = 'pointer';
+      selectBtn.style.background = isActive ? '#293262' : '#f1f5f9';
+      selectBtn.style.color = isActive ? '#ffffff' : '#334155';
+      selectBtn.textContent = `Slot ${s}`;
+      selectBtn.title = `Click to make Slot ${s} the active assessment for students`;
+      selectBtn.onclick = async () => {
+        settings = await savePortalSettings({
+          activeSlot: s,
+          totalSlots
+        });
+        populateSettingsForms();
+        await refreshQuestionsSlotView();
+        showToast(`Slot ${s} is now selected as the active slot for candidates.`);
+      };
+
+      // Toggle ON/OFF Button
+      const toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.style.padding = '4px 9px';
+      toggleBtn.style.fontSize = '11px';
+      toggleBtn.style.fontWeight = '800';
+      toggleBtn.style.border = 'none';
+      toggleBtn.style.borderLeft = '1px solid rgba(0,0,0,0.15)';
+      toggleBtn.style.cursor = 'pointer';
+      toggleBtn.style.background = isOpen ? '#10b981' : '#ef4444';
+      toggleBtn.style.color = '#ffffff';
+      toggleBtn.textContent = isOpen ? 'OPEN' : 'CLOSED';
+      toggleBtn.title = `Toggle Slot ${s} ${isOpen ? 'CLOSED' : 'OPEN'}`;
+      toggleBtn.onclick = async () => {
+        const newStatus = !isOpen;
         statusMap[String(s)] = newStatus;
         const patch = {
-          activeSlot: s,
-          totalSlots,
           slotStatusMap: statusMap
         };
         if (s === 1) patch.slot1Open = newStatus;
         if (s === 2) patch.slot2Open = newStatus;
         settings = await savePortalSettings(patch);
         populateSettingsForms();
-        showToast(`Slot ${s} is now ${newStatus ? 'ACTIVE & OPEN' : 'PAUSED'} for candidates.`);
+        showToast(`Slot ${s} is now ${newStatus ? 'OPEN' : 'CLOSED'}.`);
       };
-      quickSlotsContainer.appendChild(btn);
+
+      group.appendChild(selectBtn);
+      group.appendChild(toggleBtn);
+      quickSlotsContainer.appendChild(group);
     }
   }
 
